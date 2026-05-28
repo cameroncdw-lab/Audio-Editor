@@ -55,8 +55,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-he
 .stems-wrap{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
 .stem-card{background:var(--c1);border:2px solid var(--b1);border-radius:var(--r2);overflow:hidden;cursor:pointer;transition:all 0.15s;display:none}
 .stem-card.ready{display:flex;flex-direction:column}
-.stem-card.selected{border-color:var(--grn);box-shadow:0 0 0 3px rgba(32,217,160,0.1)}
-.stem-card:hover:not(.selected){border-color:var(--b2)}
+.stem-card.sel-full{border-color:var(--grn);box-shadow:0 0 0 3px rgba(32,217,160,0.12)}
+.stem-card.sel-voc{border-color:var(--pur);box-shadow:0 0 0 3px rgba(157,123,245,0.12)}
+.stem-card.sel-ins{border-color:var(--ora);box-shadow:0 0 0 3px rgba(248,124,61,0.12)}
+.stem-card:hover:not(.sel-full):not(.sel-voc):not(.sel-ins){border-color:var(--b2);background:var(--c2)}
 .stem-hdr{padding:10px 12px 8px;display:flex;align-items:center;gap:8px}
 .stem-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .stem-title{font-size:12px;font-weight:600;flex:1}
@@ -71,8 +73,17 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-he
 .stem-transport .btn{height:24px;padding:0 8px;font-size:11px;border-radius:5px}
 .stem-dl{padding:0 10px 10px}
 .stem-dl .btn{width:100%;height:24px;font-size:11px;border-radius:5px;justify-content:center}
-.stem-select-hint{font-size:10px;color:var(--grn);text-align:center;padding-bottom:6px;font-weight:500;display:none}
-.stem-card.selected .stem-select-hint{display:block}
+.stem-select-hint{font-size:10px;font-weight:600;text-align:center;padding:4px 6px 8px;display:none;animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:translateY(0)}}
+.stem-card.sel-full .stem-select-hint{display:block;color:var(--grn)}
+.stem-card.sel-voc .stem-select-hint{display:block;color:var(--pur)}
+.stem-card.sel-ins .stem-select-hint{display:block;color:var(--ora)}
+/* Arrow from stems to studio */
+.stem-arrow-row{display:none;justify-content:center;align-items:center;margin:2px 0 8px;gap:6px}
+.stem-arrow-row.show{display:flex}
+.stem-arrow-label{font-size:11px;font-weight:500;padding:3px 10px;border-radius:999px}
+.stem-arrow-icon{font-size:20px;line-height:1;animation:bounce .8s ease infinite alternate}
+@keyframes bounce{from{transform:translateY(0)}to{transform:translateY(4px)}}
 
 /* COMBINE BAR */
 .combine-bar{background:var(--c1);border:1px solid var(--b1);border-radius:var(--r2);padding:12px 16px;margin-bottom:16px;display:none;align-items:center;gap:10px;flex-wrap:wrap}
@@ -230,15 +241,44 @@ input[type=range].vert::-webkit-slider-thumb{width:12px;height:12px}
 .vltitle{font-size:12px;font-weight:600}
 audio{width:100%;height:22px;filter:invert(1) hue-rotate(180deg) brightness(.65)}
 
-/* YOUTUBE */
-.ytcard{background:var(--c2);border:1px solid var(--b1);border-radius:var(--r2);padding:14px;margin-bottom:10px}
-.ytrow{display:flex;gap:7px;margin-bottom:10px}
+/* QUICK LOAD OPTIONS */
+.quickload{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.ql-option{background:var(--c1);border:1px solid var(--b1);border-radius:var(--r2);padding:12px 10px;text-align:center;cursor:pointer;transition:all .15s}
+.ql-option:hover{border-color:rgba(32,217,160,0.3);background:var(--grn2)}
+.ql-ico{font-size:20px;margin-bottom:5px}
+.ql-lbl{font-size:12px;font-weight:600;margin-bottom:2px}
+.ql-sub{font-size:10px;color:var(--txt2)}
+
+/* URL LOADER */
+.urlload{background:var(--c1);border:1px solid rgba(32,217,160,0.2);border-radius:var(--r2);padding:12px 14px;margin-bottom:14px}
+.url-row{display:flex;gap:7px;align-items:center}
+.url-inp{flex:1;height:32px;background:var(--c3);border:1px solid var(--b2);color:var(--txt);border-radius:var(--r);padding:0 10px;font-family:'Inter',sans-serif;font-size:12px;outline:none}
+.url-inp:focus{border-color:rgba(32,217,160,0.35)}
+.url-inp::placeholder{color:var(--txt3)}
+
+/* YOUTUBE TAB REDESIGN */
+.yt-section{background:var(--c2);border:1px solid var(--b1);border-radius:var(--r2);padding:14px;margin-bottom:10px}
+.yt-step-hdr{font-size:12px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.yt-step-num{width:20px;height:20px;border-radius:50%;background:var(--grn);color:#000;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.yt-search-row{display:flex;gap:7px}
 .ytinp{flex:1;height:32px;background:var(--c3);border:1px solid var(--b2);color:var(--txt);border-radius:var(--r);padding:0 10px;font-family:'Inter',sans-serif;font-size:12px;outline:none}
 .ytinp:focus{border-color:rgba(32,217,160,0.35)}
 .ytinp::placeholder{color:var(--txt3)}
-.ytitems{display:flex;flex-direction:column;gap:5px;max-height:200px;overflow-y:auto}
-.ytitems::-webkit-scrollbar{width:3px}
-.ytitems::-webkit-scrollbar-thumb{background:var(--b2);border-radius:999px}
+.yt-result-row{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--c3);border:1px solid var(--b1);border-radius:var(--r);cursor:pointer;transition:all .12s;margin-bottom:5px}
+.yt-result-row:hover{border-color:var(--b2);background:var(--c4)}
+.yt-result-row.picked{border-color:rgba(32,217,160,0.4);background:var(--grn2)}
+.yt-thumb{width:60px;height:42px;border-radius:4px;background:var(--c3);object-fit:cover;flex-shrink:0}
+.yt-result-title{font-size:12px;font-weight:500;line-height:1.3;flex:1;min-width:0}
+.yt-result-ch{font-size:10px;color:var(--txt3);margin-top:2px}
+.yt-result-pick{font-size:10px;font-weight:700;color:var(--grn);flex-shrink:0}
+.yt-selected-card{background:var(--c3);border-radius:var(--r);padding:10px 12px;font-size:12px;font-weight:600;color:var(--txt);display:flex;align-items:center;gap:10px}
+.yt-extract-note{font-size:11px;color:var(--txt2);line-height:1.7;margin-top:10px;padding:8px 10px;background:var(--c3);border-radius:var(--r)}
+.yt-extract-note a{color:var(--grn)}
+.yt-drag-target{border:1.5px dashed rgba(32,217,160,0.25);border-radius:var(--r2);padding:24px;text-align:center;cursor:pointer;transition:all .15s;background:var(--c3)}
+.yt-drag-target:hover,.yt-drag-target.over{border-color:var(--grn);background:var(--grn2)}
+
+/* YOUTUBE */
+.ytcard{background:var(--c2);border:1px solid var(--b1);border-radius:var(--r2);padding:14px;margin-bottom:10px}
 .ytnote{font-size:11px;color:var(--txt2);line-height:1.7;padding:10px;background:var(--c3);border-radius:var(--r)}
 .ytnote a{color:var(--grn)}
 .ytnote strong{color:var(--txt)}
@@ -273,19 +313,54 @@ audio{width:100%;height:22px;filter:invert(1) hue-rotate(180deg) brightness(.65)
   <div class="badge">ALL IN-BROWSER</div>
 </div>
 
-<!-- DROP -->
+<!-- DROP / LOAD -->
 <div class="drop" id="dz">
   <div class="drop-ico">🎛</div>
   <div class="drop-ttl">Drop audio files here</div>
-  <div class="drop-sub">MP3 · WAV · OGG · FLAC · AAC · M4A · OPUS · AIFF — unlimited files</div>
+  <div class="drop-sub">MP3 · WAV · OGG · FLAC · AAC · M4A · OPUS · AIFF — or use the options below</div>
   <input type="file" id="fi" accept="audio/*,.flac,.aiff,.opus,.m4a,.aac" multiple>
+</div>
+
+<!-- QUICK LOAD OPTIONS -->
+<div class="quickload" id="quickLoad">
+  <div class="ql-option" id="qlFile" onclick="G('fi').click()">
+    <div class="ql-ico">📁</div>
+    <div class="ql-lbl">Browse files</div>
+    <div class="ql-sub">MP3, WAV, FLAC, M4A…</div>
+  </div>
+  <div class="ql-option" id="qlUrl" onclick="toggleUrlLoad()">
+    <div class="ql-ico">🔗</div>
+    <div class="ql-lbl">Load from URL</div>
+    <div class="ql-sub">Paste a direct audio link</div>
+  </div>
+  <div class="ql-option" id="qlYt" onclick="scrollToYt()">
+    <div class="ql-ico">▶️</div>
+    <div class="ql-lbl">YouTube → MP3</div>
+    <div class="ql-sub">Search &amp; extract audio</div>
+  </div>
+  <div class="ql-option" id="qlRecord" onclick="scrollToRecord()">
+    <div class="ql-ico">🎙</div>
+    <div class="ql-lbl">Record audio</div>
+    <div class="ql-sub">Use your microphone</div>
+  </div>
+</div>
+
+<!-- URL LOADER -->
+<div class="urlload" id="urlLoadBox" style="display:none">
+  <div class="url-row">
+    <input class="url-inp" id="urlInp" type="text" placeholder="Paste direct audio URL — e.g. https://example.com/song.mp3">
+    <button class="btn g" id="btnLoadUrl">Load</button>
+    <button class="btn" onclick="G('urlLoadBox').style.display='none'">✕</button>
+  </div>
+  <div style="font-size:10px;color:var(--txt3);margin-top:5px">Works with any direct .mp3 / .wav / .ogg / .m4a link. Does not work with Spotify, Apple Music, or YouTube page links.</div>
+  <span class="pill" id="urlPill"></span>
 </div>
 
 <div class="slabel" id="slbl" style="display:none">Tracks</div>
 <div class="slist" id="slist"></div>
 
 <!-- 3 STEM EDITORS -->
-<div class="stems-hdr" id="stemsHdr" style="display:none">Select a track to edit — click any track below to make it active</div>
+<div class="stems-hdr" id="stemsHdr" style="display:none">👇 Click a track to load it into the editor below</div>
 <div class="stems-wrap" id="stemsWrap">
   <div class="stem-card" id="sc-full">
     <div class="stem-hdr">
@@ -298,7 +373,7 @@ audio{width:100%;height:22px;filter:invert(1) hue-rotate(180deg) brightness(.65)
       <button class="btn g" id="sp-full">▶</button>
       <button class="btn" id="ss-full">■</button>
     </div>
-    <div class="stem-select-hint">✏️ Editing this track</div>
+    <div class="stem-select-hint">↓ Loaded in editor below</div>
     <div class="stem-dl"><button class="btn" onclick="dlStem('full')">⬇ Download</button></div>
   </div>
   <div class="stem-card" id="sc-voc">
@@ -312,7 +387,7 @@ audio{width:100%;height:22px;filter:invert(1) hue-rotate(180deg) brightness(.65)
       <button class="btn p" id="sp-voc">▶</button>
       <button class="btn" id="ss-voc">■</button>
     </div>
-    <div class="stem-select-hint">✏️ Editing this track</div>
+    <div class="stem-select-hint">↓ Loaded in editor below</div>
     <div class="stem-dl"><button class="btn" onclick="dlStem('voc')">⬇ Download</button></div>
   </div>
   <div class="stem-card" id="sc-ins">
@@ -326,9 +401,16 @@ audio{width:100%;height:22px;filter:invert(1) hue-rotate(180deg) brightness(.65)
       <button class="btn ora" id="sp-ins">▶</button>
       <button class="btn" id="ss-ins">■</button>
     </div>
-    <div class="stem-select-hint">✏️ Editing this track</div>
+    <div class="stem-select-hint">↓ Loaded in editor below</div>
     <div class="stem-dl"><button class="btn" onclick="dlStem('ins')">⬇ Download</button></div>
   </div>
+</div>
+
+<!-- ARROW CONNECTOR -->
+<div class="stem-arrow-row" id="stemArrowRow">
+  <span class="stem-arrow-label" id="stemArrowLabel" style="background:var(--grn2);color:var(--grn)">Full Track</span>
+  <span class="stem-arrow-icon">↓</span>
+  <span style="font-size:11px;color:var(--txt3)">loaded in editor</span>
 </div>
 
 <!-- COMBINE BAR -->
@@ -576,19 +658,57 @@ audio{width:100%;height:22px;filter:invert(1) hue-rotate(180deg) brightness(.65)
 
     <!-- YOUTUBE -->
     <div class="panel" id="tab-youtube">
-      <div class="ytcard">
-        <div style="font-size:13px;font-weight:600;margin-bottom:4px">▶️ YouTube → Audio</div>
-        <div style="font-size:11px;color:var(--txt2);margin-bottom:12px">Paste a YouTube URL below to get quick links for audio extraction, then drag the downloaded file into Studio Pro.</div>
-        <div class="ytrow">
-          <input type="text" class="ytinp" id="ytInp" placeholder="Paste YouTube URL e.g. youtube.com/watch?v=...">
-          <button class="btn b" id="btnYt">Get Links</button>
+
+      <!-- STEP 1: SEARCH -->
+      <div class="yt-section">
+        <div class="yt-step-hdr"><span class="yt-step-num">1</span> Search YouTube</div>
+        <div class="yt-search-row">
+          <input class="ytinp" id="ytSearchInp" type="text" placeholder="Search e.g. 'lofi hip hop' or 'Blinding Lights weeknd'">
+          <button class="btn b" id="btnYtSearch">🔍 Search</button>
         </div>
-        <div id="ytNote" class="ytnote" style="display:none"></div>
+        <div id="ytResults" style="margin-top:8px"></div>
       </div>
-      <div class="ytcard">
-        <div style="font-size:12px;font-weight:600;margin-bottom:8px">💡 Best free tools for YouTube → MP3</div>
-        <div class="ytnote"><a href="https://cobalt.tools" target="_blank">cobalt.tools</a> — <strong>Recommended.</strong> No ads, fast, privacy-friendly. Paste any URL.<br><a href="https://yt1s.io" target="_blank">yt1s.io</a> — Simple paste-and-download, choose MP3 or MP4.<br><a href="https://y2meta.app" target="_blank">y2meta.app</a> — Another reliable free option.<br><br>Once downloaded, drag the MP3 into Studio Pro above.</div>
+
+      <!-- STEP 2: EXTRACT -->
+      <div class="yt-section" id="ytExtractSec" style="display:none">
+        <div class="yt-step-hdr"><span class="yt-step-num">2</span> Extract Audio</div>
+        <div class="yt-selected-card" id="ytSelectedCard"></div>
+        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+          <a class="btn g" id="btnCobalt" href="#" target="_blank">⚡ Extract with Cobalt (recommended)</a>
+          <a class="btn b" id="btnYt1s" href="#" target="_blank">Extract with yt1s</a>
+          <a class="btn" id="btnY2meta" href="#" target="_blank">Extract with y2meta</a>
+        </div>
+        <div class="yt-extract-note">These tools open in a new tab. Choose MP3, download the file, then drag it into Studio Pro — usually takes about 15 seconds total.</div>
       </div>
+
+      <!-- STEP 3: DRAG BACK -->
+      <div class="yt-section" id="ytDragSec" style="display:none">
+        <div class="yt-step-hdr"><span class="yt-step-num">3</span> Drag MP3 into Studio Pro</div>
+        <div class="yt-drag-target" id="ytDragTarget">
+          <div style="font-size:24px;margin-bottom:6px">⬇</div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:3px">Drop the downloaded MP3 here</div>
+          <div style="font-size:11px;color:var(--txt2)">Or click to browse for it</div>
+        </div>
+      </div>
+
+      <!-- MANUAL URL SECTION -->
+      <div class="yt-section">
+        <div class="yt-step-hdr" style="cursor:pointer" onclick="toggleYtManual()">📋 Already have a YouTube URL? Paste it directly <span id="ytManualToggle" style="color:var(--txt3)">▼</span></div>
+        <div id="ytManualBox" style="display:none;margin-top:8px">
+          <div class="yt-search-row">
+            <input class="ytinp" id="ytUrlInp" type="text" placeholder="https://youtube.com/watch?v=...">
+            <button class="btn b" id="btnYtUrl">Go</button>
+          </div>
+          <div id="ytUrlResult" style="margin-top:8px"></div>
+        </div>
+      </div>
+
+      <!-- SPOTIFY NOTE -->
+      <div class="yt-section">
+        <div class="yt-step-hdr">🎵 Spotify</div>
+        <div class="yt-extract-note" style="background:var(--c2)">Spotify encrypts all audio and their API prohibits downloading — there's no way to extract Spotify audio directly. The workaround: search for the same song on YouTube, extract it there, and load it in.</div>
+      </div>
+
     </div>
 
     <!-- DOWNLOAD BAR -->
@@ -733,8 +853,14 @@ async function selectSong(i){
   G('sb-voc').textContent='Processing…';G('sb-ins').textContent='Processing…';
   // Draw full waveform in stem card
   drawWaveOnCanvas(stems.full.buf,G('wv-full'),'#20d9a0');
-  // Select full track for editing
-  setActiveStem('full');
+  // Select full track for editing (no scroll on initial load)
+  activeStem='full';
+  document.querySelectorAll('.stem-card').forEach(c=>c.classList.remove('sel-full','sel-voc','sel-ins'));
+  G('sc-full').classList.add('sel-full');
+  G('stemArrowRow').classList.add('show');
+  G('stemArrowLabel').textContent='🎵 Full Track';G('stemArrowLabel').style.color='var(--grn)';G('stemArrowLabel').style.background='var(--grn2)';
+  G('stemInd').textContent='🎵 Full Track';G('stemInd').style.color='var(--grn)';G('stemInd').style.background='var(--grn2)';
+  drawWaveMainFromBuf(stems.full.buf,'full');updTime(0);
   pill('stPill','ok','Ready');
   G('combineBar').classList.add('show');
   // Split in background
@@ -767,18 +893,41 @@ async function splitStems(buf){
 
 // ═══ STEM SELECTION ═══════════════════════════════════════════════════════════
 function setActiveStem(k){
+  // Stop any currently playing main audio
+  stopMain();mainStartOff=0;
+
   activeStem=k;
-  document.querySelectorAll('.stem-card').forEach(c=>c.classList.remove('selected'));
-  G('sc-'+k).classList.add('selected');
-  // Update studio header
+
+  // Update card highlight — remove all sel classes first
+  document.querySelectorAll('.stem-card').forEach(c=>{
+    c.classList.remove('sel-full','sel-voc','sel-ins');
+  });
+  G('sc-'+k).classList.add('sel-'+k);
+
+  // Update arrow row
+  const arrowRow=G('stemArrowRow'),arrowLbl=G('stemArrowLabel');
+  arrowRow.classList.add('show');
   const labels={full:'🎵 Full Track',voc:'🎤 Vocals Only',ins:'🎸 Instrumental'};
   const colors={full:'var(--grn)',voc:'var(--pur)',ins:'var(--ora)'};
   const bgs={full:'var(--grn2)',voc:'var(--pur2)',ins:'var(--ora2)'};
+  arrowLbl.textContent=labels[k];arrowLbl.style.color=colors[k];arrowLbl.style.background=bgs[k];
+
+  // Update studio header indicator
   G('stemInd').textContent=labels[k];G('stemInd').style.color=colors[k];G('stemInd').style.background=bgs[k];
+
+  // Load stem buffer into main waveform
   const buf=stems[k].editBuf||stems[k].buf;
-  if(buf){drawWaveMainFromBuf(buf);updTime(0);}
-  // Show editing badge
-  ['full','voc','ins'].forEach(sk=>{const b=G('sb-'+sk);if(b){if(sk===k){b.textContent='✏️ Editing';b.className='stem-badge editing';b.style.display='';}else{b.style.display='none';}}});
+  if(buf){drawWaveMainFromBuf(buf,k);updTime(0);G('mainProg').style.width='0%';}
+
+  // Update editing badge on all stem cards
+  ['full','voc','ins'].forEach(sk=>{
+    const b=G('sb-'+sk);if(!b)return;
+    if(sk===k){b.textContent='✏️ Editing';b.className='stem-badge editing';b.style.display='';}
+    else{b.style.display='none';}
+  });
+
+  // Scroll so studio is visible
+  G('studio').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 ['full','voc','ins'].forEach(k=>{
@@ -878,7 +1027,7 @@ G('btnRev').onclick=()=>{
   if(!s.revBuf){ensureCtx();const r=audioCtx.createBuffer(baseBuf.numberOfChannels,baseBuf.length,baseBuf.sampleRate);for(let c=0;c<baseBuf.numberOfChannels;c++){const d=baseBuf.getChannelData(c).slice().reverse();r.getChannelData(c).set(d);}s.revBuf=r;}
   const isRev=!!s._reversed;s._reversed=!isRev;
   if(s._reversed)s.revBuf=s.revBuf;else s.revBuf=null;// toggle
-  const was=mainPlaying;stopMain();mainStartOff=0;drawWaveMainFromBuf(getActiveBuf()||baseBuf);if(was){buildGraph();playMain(0);}
+  const was=mainPlaying;stopMain();mainStartOff=0;drawWaveMainFromBuf(getActiveBuf()||baseBuf,activeStem);if(was){buildGraph();playMain(0);}
   G('btnRev').classList.toggle('r',!s._reversed);G('btnRev').classList.toggle('g',s._reversed);G('btnRev').textContent=s._reversed?'▶ Normal':'⏮ Reverse';
 };
 G('btnRevert').onclick=()=>{
@@ -893,7 +1042,7 @@ G('btnRevert').onclick=()=>{
   curVoiceFx=null;curCeleb=null;curEnv=null;
   document.querySelectorAll('.listrow.on').forEach(r=>r.classList.remove('on'));G('celebDetail').style.display='none';
   if(eqNodes.length)eqNodes.forEach(n=>n.gain.value=0);if(gBass)gBass.gain.value=0;if(gTreble)gTreble.gain.value=0;
-  drawWaveMainFromBuf(s.editBuf||s.buf);buildGraph();pill('stPill','ok','Reverted');
+  drawWaveMainFromBuf(s.editBuf||s.buf,activeStem);buildGraph();pill('stPill','ok','Reverted');
 };
 
 G('mainWave').addEventListener('click',e=>{const buf=getActiveBuf();if(!buf)return;const r=G('mainWave').getBoundingClientRect();const pct=(e.clientX-r.left)/r.width,off=pct*buf.duration;const was=mainPlaying;stopMain();mainStartOff=off;if(was){buildGraph();playMain(off);}updTime(off);G('mainProg').style.width=pct*100+'%';});
@@ -980,8 +1129,106 @@ G('btnMixDl').onclick=async()=>{if(!getActiveBuf()||!voiceLayerBuf)return;pill('
 function drawRecViz(){const c=G('recCanvas'),ctx=c.getContext('2d');c.width=c.offsetWidth||600;function f(){if(!recAnalyser)return;const d=new Uint8Array(recAnalyser.frequencyBinCount);recAnalyser.getByteTimeDomainData(d);ctx.fillStyle='#1a1a23';ctx.fillRect(0,0,c.width,c.height);ctx.strokeStyle='#20d9a0';ctx.lineWidth=1.5;ctx.beginPath();const sw=c.width/d.length;let x=0;for(let i=0;i<d.length;i++){const y=c.height/2+(d[i]/128-1)*c.height*.4;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);x+=sw;}ctx.stroke();recRaf=requestAnimationFrame(f);}f();}
 
 // ═══ YOUTUBE ══════════════════════════════════════════════════════════════════
-G('btnYt').onclick=()=>{const q=G('ytInp').value.trim();if(!q)return;const note=G('ytNote');const m=q.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([a-zA-Z0-9_-]{11})/);note.style.display='block';if(m){const vid=m[1];note.innerHTML=`<strong>Detected YouTube video:</strong> ${vid}<br><br><a href="https://cobalt.tools/?u=${encodeURIComponent(q)}" target="_blank">→ Extract with Cobalt.tools (recommended)</a><br><a href="https://yt1s.io/en40/youtube-to-mp3?q=${encodeURIComponent(q)}" target="_blank">→ Extract with yt1s</a><br><a href="https://y2meta.app/youtube-to-mp3?q=${encodeURIComponent(q)}" target="_blank">→ Extract with y2meta</a><br><br>Download the MP3 file, then drag it into Studio Pro.`;}else{note.innerHTML=`No YouTube URL detected. Make sure to paste the full URL like <code>https://youtube.com/watch?v=...</code> — or use the tools above to search and download.`;}};
+// ═══ QUICK LOAD / URL LOADER ══════════════════════════════════════════════════
+window.toggleUrlLoad=()=>{const b=G('urlLoadBox');b.style.display=b.style.display==='none'?'block':'none';if(b.style.display==='block')G('urlInp').focus();};
+window.scrollToYt=()=>{document.querySelector('[data-t="youtube"]').click();G('studio').scrollIntoView({behavior:'smooth'});};
+window.scrollToRecord=()=>{G('studio').scrollIntoView({behavior:'smooth'});setTimeout(()=>document.querySelector('[data-t="record"]').click(),400);};
 
+G('btnLoadUrl').onclick=async()=>{
+  const url=G('urlInp').value.trim();if(!url)return;
+  pill('urlPill','ld','Loading…');
+  try{
+    const res=await fetch(url,{mode:'cors'});
+    if(!res.ok)throw new Error('Could not fetch URL');
+    const ct=res.headers.get('content-type')||'';
+    if(!ct.startsWith('audio/')&&!url.match(/\.(mp3|wav|ogg|flac|m4a|aac|opus|aiff)(\?|$)/i))throw new Error('URL does not appear to be an audio file');
+    const ab=await res.arrayBuffer();
+    const fname=url.split('/').pop().split('?')[0]||'from-url.mp3';
+    const file=new File([ab],fname,{type:ct||'audio/mpeg'});
+    songs.push({file,name:fname,buf:null});renderSongs();
+    G('urlLoadBox').style.display='none';G('urlInp').value='';
+    if(songs.length===1&&curIdx<0)selectSong(0);else selectSong(songs.length-1);
+    pill('urlPill','ok','Loaded!');
+  }catch(e){pill('urlPill','err',e.message.includes('fetch')||e.message.includes('CORS')?'CORS blocked — try downloading the file directly':e.message);}
+};
+G('urlInp').addEventListener('keydown',e=>{if(e.key==='Enter')G('btnLoadUrl').click();});
+
+// ═══ YOUTUBE SEARCH + EXTRACT ═════════════════════════════════════════════════
+let ytPickedUrl='',ytPickedTitle='';
+
+// YouTube search uses the Invidious public API (open-source YouTube frontend, no key needed)
+const INVIDIOUS_INSTANCES=['https://invidious.privacydev.net','https://vid.puffyan.us','https://invidious.io'];
+let invIdx=0;
+
+async function ytSearch(q){
+  for(let attempt=0;attempt<INVIDIOUS_INSTANCES.length;attempt++){
+    const base=INVIDIOUS_INSTANCES[(invIdx+attempt)%INVIDIOUS_INSTANCES.length];
+    try{
+      const res=await fetch(`${base}/api/v1/search?q=${encodeURIComponent(q)}&type=video&fields=videoId,title,author,lengthSeconds`,{signal:AbortSignal.timeout(6000)});
+      if(!res.ok)continue;
+      const data=await res.json();
+      invIdx=(invIdx+attempt)%INVIDIOUS_INSTANCES.length;
+      return Array.isArray(data)?data.slice(0,6):[];
+    }catch(e){continue;}
+  }
+  return null;// all failed
+}
+
+G('btnYtSearch').onclick=async()=>{
+  const q=G('ytSearchInp').value.trim();if(!q)return;
+  const res=G('ytResults');res.innerHTML='<div style="font-size:11px;color:var(--txt2);padding:6px 0">Searching…</div>';
+  const results=await ytSearch(q);
+  res.innerHTML='';
+  if(!results){
+    res.innerHTML=`<div class="yt-extract-note">Search unavailable right now (Invidious API may be down). <br>Try: <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(q)}" target="_blank">Search on YouTube</a>, copy the video URL, then paste it in the "Already have a URL" section below.</div>`;
+    return;
+  }
+  if(results.length===0){res.innerHTML='<div style="font-size:11px;color:var(--txt2)">No results found.</div>';return;}
+  results.forEach(v=>{
+    const dur=v.lengthSeconds?`${Math.floor(v.lengthSeconds/60)}:${String(v.lengthSeconds%60).padStart(2,'0')}`:'';
+    const row=CE('div');row.className='yt-result-row';
+    row.innerHTML=`<img class="yt-thumb" src="https://img.youtube.com/vi/${v.videoId}/mqdefault.jpg" onerror="this.style.opacity='.3'"><div class="yt-result-title">${esc(v.title||'')}<div class="yt-result-ch">${esc(v.author||'')} ${dur?'· '+dur:''}</div></div><span class="yt-result-pick">Select →</span>`;
+    row.onclick=()=>pickYtVideo(v.videoId,v.title||'YouTube audio',row);
+    res.appendChild(row);
+  });
+};
+G('ytSearchInp').addEventListener('keydown',e=>{if(e.key==='Enter')G('btnYtSearch').click();});
+
+function pickYtVideo(id,title,row){
+  document.querySelectorAll('.yt-result-row').forEach(r=>r.classList.remove('picked'));
+  if(row)row.classList.add('picked');
+  const url='https://www.youtube.com/watch?v='+id;
+  ytPickedUrl=url;ytPickedTitle=title;
+  showYtExtract(id,title,url);
+}
+
+function showYtExtract(id,title,url){
+  G('ytExtractSec').style.display='block';G('ytDragSec').style.display='block';
+  G('ytSelectedCard').innerHTML=`<img src="https://img.youtube.com/vi/${id}/mqdefault.jpg" style="width:60px;height:42px;border-radius:4px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'"><div><div style="font-size:12px;font-weight:600">${esc(title)}</div><div style="font-size:10px;color:var(--txt2);margin-top:2px">${url}</div></div>`;
+  G('btnCobalt').href=`https://cobalt.tools/?u=${encodeURIComponent(url)}`;
+  G('btnYt1s').href=`https://yt1s.io/en40/youtube-to-mp3?q=${encodeURIComponent(url)}`;
+  G('btnY2meta').href=`https://y2meta.app/youtube-to-mp3?q=${encodeURIComponent(url)}`;
+  G('ytExtractSec').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// Manual URL input in YouTube tab
+window.toggleYtManual=()=>{const b=G('ytManualBox');b.style.display=b.style.display==='none'?'block':'none';};
+G('btnYtUrl').onclick=()=>{
+  const url=G('ytUrlInp').value.trim();if(!url)return;
+  const m=url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([a-zA-Z0-9_-]{11})/);
+  if(m){pickYtVideo(m[1],'YouTube video',null);G('ytUrlResult').innerHTML='';}
+  else{G('ytUrlResult').innerHTML='<div style="font-size:11px;color:var(--red);margin-top:4px">Not a valid YouTube URL. Try: youtube.com/watch?v=XXXXXXXXXXX</div>';}
+};
+G('ytUrlInp').addEventListener('keydown',e=>{if(e.key==='Enter')G('btnYtUrl').click();});
+
+// YouTube drag target — same as main drop zone
+const ytDT=G('ytDragTarget');
+if(ytDT){
+  ytDT.onclick=()=>G('fi').click();
+  ytDT.addEventListener('dragover',e=>{e.preventDefault();ytDT.classList.add('over')});
+  ytDT.addEventListener('dragleave',()=>ytDT.classList.remove('over'));
+  ytDT.addEventListener('drop',e=>{e.preventDefault();ytDT.classList.remove('over');loadFiles([...e.dataTransfer.files]);G('studio').scrollIntoView({behavior:'smooth'});});
+}
 // ═══ DOWNLOAD ═════════════════════════════════════════════════════════════════
 G('btnDl').onclick=async()=>{
   const buf=getActiveBuf();if(!buf)return;
@@ -1021,7 +1268,16 @@ async function genImp(decay,dur=2.5){ensureCtx();const sr=audioCtx.sampleRate,l=
 async function genImpOff(ctx,decay,dur=2.5){const sr=ctx.sampleRate,l=Math.ceil(sr*Math.max(.5,dur)),b=ctx.createBuffer(2,l,sr);for(let c=0;c<2;c++){const d=b.getChannelData(c);for(let i=0;i<l;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/l,Math.max(.1,decay)*8);}return b;}
 function wav2url(buf){const l=buf.length,ch=buf.numberOfChannels,sr=buf.sampleRate,ab=new ArrayBuffer(44+l*ch*2),v=new DataView(ab);function ws(o,s){for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));}ws(0,'RIFF');v.setUint32(4,36+l*ch*2,true);ws(8,'WAVE');ws(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,ch,true);v.setUint32(24,sr,true);v.setUint32(28,sr*ch*2,true);v.setUint16(32,ch*2,true);v.setUint16(34,16,true);ws(36,'data');v.setUint32(40,l*ch*2,true);let o=44;for(let i=0;i<l;i++)for(let c=0;c<ch;c++){const s=Math.max(-1,Math.min(1,buf.getChannelData(c)[i]));v.setInt16(o,s<0?s*0x8000:s*0x7FFF,true);o+=2;}return URL.createObjectURL(new Blob([ab],{type:'audio/wav'}));}
 function drawWaveOnCanvas(buf,canvas,color){const ctx=canvas.getContext('2d');const W=canvas.offsetWidth||300;canvas.width=W;const H=canvas.height,data=buf.getChannelData(0),step=Math.ceil(data.length/W);ctx.fillStyle='#1a1a23';ctx.fillRect(0,0,W,H);const mid=H/2;ctx.fillStyle=color||'#20d9a0';for(let x=0;x<W;x++){let mn=1,mx=-1;for(let j=0;j<step;j++){const vv=data[x*step+j]||0;if(vv<mn)mn=vv;if(vv>mx)mx=vv;}ctx.fillRect(x,mid+mn*mid*.88,1,Math.max(1,(mx-mn)*mid*.88));}}
-function drawWaveMainFromBuf(buf){const c=G('mainWave'),ctx=c.getContext('2d');const W=c.offsetWidth||700;c.width=W;const H=c.height,data=buf.getChannelData(0),step=Math.ceil(data.length/W);ctx.fillStyle='#1a1a23';ctx.fillRect(0,0,W,H);const mid=H/2;for(let x=0;x<W;x++){let mn=1,mx=-1;for(let j=0;j<step;j++){const vv=data[x*step+j]||0;if(vv<mn)mn=vv;if(vv>mx)mx=vv;}const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'rgba(32,217,160,.88)');g.addColorStop(1,'rgba(157,123,245,.88)');ctx.fillStyle=g;ctx.fillRect(x,mid+mn*mid*.88,1,Math.max(1,(mx-mn)*mid*.88));}}
+function drawWaveMainFromBuf(buf,stemKey){
+  const c=G('mainWave'),ctx=c.getContext('2d');
+  const W=c.offsetWidth||700;c.width=W;
+  const H=c.height,data=buf.getChannelData(0),step=Math.ceil(data.length/W);
+  ctx.fillStyle='#1a1a23';ctx.fillRect(0,0,W,H);
+  const mid=H/2;
+  const colA=stemKey==='voc'?'rgba(157,123,245,.88)':stemKey==='ins'?'rgba(248,124,61,.88)':'rgba(32,217,160,.88)';
+  const colB=stemKey==='voc'?'rgba(32,217,160,.5)':stemKey==='ins'?'rgba(157,123,245,.5)':'rgba(157,123,245,.88)';
+  for(let x=0;x<W;x++){let mn=1,mx=-1;for(let j=0;j<step;j++){const vv=data[x*step+j]||0;if(vv<mn)mn=vv;if(vv>mx)mx=vv;}const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,colA);g.addColorStop(1,colB);ctx.fillStyle=g;ctx.fillRect(x,mid+mn*mid*.88,1,Math.max(1,(mx-mn)*mid*.88));}
+}
 function pill(id,type,txt){const p=G(id);p.className='pill v '+(type==='err'?'err':type==='ld'?'ld':'ok');p.textContent=txt;if(type==='ok')setTimeout(()=>p.classList.remove('v'),3500);}
 function fmtTime(s){s=Math.max(0,s||0);return Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0');}
 function fmtBytes(b){return b<1048576?(b/1024).toFixed(1)+' KB':(b/1048576).toFixed(1)+' MB';}
