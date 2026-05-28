@@ -285,12 +285,13 @@ audio{width:100%;height:22px;filter:invert(1) hue-rotate(180deg) brightness(.65)
 .yt-drag-target:hover,.yt-drag-target.over{border-color:var(--grn);background:var(--grn2)}
 
 /* YOUTUBE BIG LINKS */
-.yt-big-link{display:flex;align-items:center;gap:14px;background:var(--c2);border:1px solid var(--b2);border-radius:var(--r2);padding:14px 16px;text-decoration:none;transition:all .15s;cursor:pointer}
-.yt-big-link:hover{border-color:rgba(32,217,160,0.4);background:var(--grn2)}
-.yt-big-link-ico{font-size:24px;flex-shrink:0}
-.yt-big-link-title{font-size:14px;font-weight:700;color:var(--txt);margin-bottom:3px}
+.yt-big-link{display:flex;align-items:center;gap:14px;background:var(--c2);border:2px solid var(--b2);border-radius:var(--r2);padding:16px 18px;text-decoration:none;transition:all .15s;cursor:pointer;color:var(--txt);pointer-events:all}
+.yt-big-link:hover{border-color:var(--grn);background:var(--grn2);color:var(--txt)}
+.yt-big-link:visited{color:var(--txt)}
+.yt-big-link-ico{font-size:28px;flex-shrink:0;line-height:1}
+.yt-big-link-title{font-size:15px;font-weight:700;color:var(--txt);margin-bottom:4px}
 .yt-big-link-sub{font-size:11px;color:var(--txt2)}
-.yt-big-link-arrow{font-size:18px;color:var(--grn);margin-left:auto;flex-shrink:0}
+.yt-big-link-arrow{font-size:22px;color:var(--grn);margin-left:auto;flex-shrink:0;font-weight:700}
 
 /* DL BAR */
 .dlbar{padding:11px 14px;border-top:1px solid var(--b1);display:flex;align-items:center;gap:7px;flex-wrap:wrap}
@@ -337,10 +338,10 @@ audio{width:100%;height:22px;filter:invert(1) hue-rotate(180deg) brightness(.65)
     <div class="ql-lbl">Browse files</div>
     <div class="ql-sub">MP3, WAV, FLAC, M4A…</div>
   </div>
-  <div class="ql-option" id="qlYt" onclick="scrollToYt()">
+  <div class="ql-option" id="qlYt" onclick="window.open('https://yt2mp3.sc/','_blank')">
     <div class="ql-ico">▶️</div>
     <div class="ql-lbl">YouTube → MP3</div>
-    <div class="ql-sub">Get audio from YouTube</div>
+    <div class="ql-sub">Opens yt2mp3.sc</div>
   </div>
   <div class="ql-option" id="qlRecord" onclick="quickStartRecord()">
     <div class="ql-ico">🎙</div>
@@ -352,20 +353,19 @@ audio{width:100%;height:22px;filter:invert(1) hue-rotate(180deg) brightness(.65)
 <!-- STANDALONE RECORD CARD -->
 <div class="standalone-rec" id="standaloneRec" style="display:none">
   <div class="sr-hdr">
-    <span>🎙 Recording</span>
-    <div style="display:flex;gap:6px;align-items:center">
-      <span class="pill" id="srPill"></span>
-      <button class="btn" style="height:24px;font-size:10px;padding:0 8px" onclick="G('standaloneRec').style.display='none'">✕</button>
-    </div>
+    <span>🎙 Record Audio</span>
+    <button class="btn" style="height:24px;font-size:10px;padding:0 8px" onclick="G('standaloneRec').style.display='none'">✕ Close</button>
   </div>
-  <div style="height:44px;background:var(--c3);border-radius:var(--r);margin-bottom:8px;overflow:hidden">
-    <canvas id="srCanvas" height="44" style="width:100%;display:block"></canvas>
+  <div style="font-size:11px;color:var(--txt2);margin-bottom:10px">Your browser will ask for microphone permission — click Allow.</div>
+  <div style="height:52px;background:var(--c3);border-radius:var(--r);margin-bottom:10px;overflow:hidden">
+    <canvas id="srCanvas" height="52" style="width:100%;display:block"></canvas>
   </div>
-  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-    <button class="btn r" id="srBtnRec"><span class="recdot" id="srDot"></span> Record</button>
-    <button class="btn" id="srBtnStop" disabled>■ Stop</button>
-    <button class="btn g" id="srBtnLoad" disabled>✓ Load into Studio</button>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+    <button class="btn r" id="srBtnRec" style="height:36px;font-size:13px;padding:0 16px;font-weight:700"><span class="recdot" id="srDot"></span> Start Recording</button>
+    <button class="btn" id="srBtnStop" disabled style="height:36px;font-size:13px;padding:0 16px">■ Stop</button>
+    <button class="btn g" id="srBtnLoad" disabled style="height:36px;font-size:13px;padding:0 16px">✓ Load into Studio</button>
   </div>
+  <span class="pill" id="srPill"></span>
 </div>
 
 <div class="slabel" id="slbl" style="display:none">Tracks</div>
@@ -679,41 +679,19 @@ audio{width:100%;height:22px;filter:invert(1) hue-rotate(180deg) brightness(.65)
 
     <!-- YOUTUBE -->
     <div class="panel" id="tab-youtube">
-      <div style="font-size:13px;font-weight:600;margin-bottom:12px">Get audio from YouTube in 3 steps:</div>
-
-      <div style="font-size:12px;color:var(--txt2);line-height:2;margin-bottom:16px">
-        <b style="color:var(--txt)">1.</b> Go to YouTube, find the video, copy the URL from the address bar<br>
-        <b style="color:var(--txt)">2.</b> Click one of the links below, paste the URL, download the MP3<br>
-        <b style="color:var(--txt)">3.</b> Come back here and drag the MP3 onto the drop zone at the top
-      </div>
-
-      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
-        <a href="https://yt2mp3.sc/" target="_blank" class="yt-big-link">
-          <div class="yt-big-link-ico">🎵</div>
-          <div>
-            <div class="yt-big-link-title">YTMP3 — yt2mp3.sc</div>
-            <div class="yt-big-link-sub">yt2mp3.sc · paste URL → choose MP3 → Download</div>
-          </div>
-          <div class="yt-big-link-arrow">→</div>
+      <div style="background:var(--c2);border:1px solid var(--b2);border-radius:var(--r2);padding:20px;display:flex;flex-direction:column;gap:12px">
+        <div style="font-size:12px;color:var(--txt2);margin-bottom:4px">Download your YouTube audio using either of these sites, then drag the MP3 into the drop zone at the top of this page.</div>
+        <a href="https://yt2mp3.sc/" target="_blank" style="display:block;background:var(--c3);border:1px solid var(--b3);border-radius:var(--r);padding:14px 16px;color:var(--grn);font-size:14px;font-weight:700;text-decoration:none">
+          🎵 YTMP3 — yt2mp3.sc ↗
         </a>
-        <a href="https://en1.y2mate.is/n2u/youtube-to-mp3.html" target="_blank" class="yt-big-link">
-          <div class="yt-big-link-ico">🎶</div>
-          <div>
-            <div class="yt-big-link-title">Y2Mate</div>
-            <div class="yt-big-link-sub">y2mate.is · paste URL → convert → Download MP3</div>
-          </div>
-          <div class="yt-big-link-arrow">→</div>
+        <a href="https://en1.y2mate.is/n2u/youtube-to-mp3.html" target="_blank" style="display:block;background:var(--c3);border:1px solid var(--b3);border-radius:var(--r);padding:14px 16px;color:var(--grn);font-size:14px;font-weight:700;text-decoration:none">
+          🎶 Y2Mate ↗
         </a>
       </div>
-
-      <div class="yt-drag-target" id="ytDragTarget">
+      <div class="yt-drag-target" id="ytDragTarget" style="margin-top:12px">
         <div style="font-size:24px;margin-bottom:6px">⬇</div>
         <div style="font-size:13px;font-weight:600;margin-bottom:3px">Drop downloaded MP3 here</div>
         <div style="font-size:11px;color:var(--txt2)">Or click to browse for the file</div>
-      </div>
-
-      <div style="margin-top:12px;padding:10px;background:var(--c2);border-radius:var(--r);font-size:11px;color:var(--txt3)">
-        🎵 <b style="color:var(--txt2)">Spotify?</b> Spotify audio can't be downloaded — search for the same song on YouTube and use the links above instead.
       </div>
     </div>
 
@@ -738,6 +716,33 @@ audio{width:100%;height:22px;filter:invert(1) hue-rotate(180deg) brightness(.65)
 </div>
 
 <script>
+// ═══ EARLY STUBS — defined first so HTML onclick attributes can call them ════
+function quickStartRecord(){
+  var el=document.getElementById('standaloneRec');
+  if(el){el.style.display='block';el.scrollIntoView({behavior:'smooth',block:'nearest'});}
+}
+function clrVoiceLayer(){
+  window._clrVoiceLayer&&window._clrVoiceLayer();
+}
+function scrollToYt(){
+  var st=document.getElementById('stContent');
+  if(!st||st.style.display==='none'){window.open('https://yt2mp3.sc/','_blank');return;}
+  document.querySelectorAll('.tab').forEach(function(t){if(t.dataset.t==='youtube')t.click();});
+  document.getElementById('studio').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function scrollToRecord(){quickStartRecord();}
+function setTune(hz){
+  var sl=document.getElementById('tuneSl'),dp=document.getElementById('tuneDisp');
+  if(sl&&dp){sl.value=hz;dp.textContent=hz;if(window._updR)window._updR();}
+}
+function setPitch(v){
+  var sl=document.getElementById('pitchSl'),dp=document.getElementById('pitchDisp');
+  if(sl&&dp){sl.value=v;dp.textContent=(v>=0?'+':'')+v;if(window._updR)window._updR();}
+}
+function setSpeed(v){
+  var sl=document.getElementById('speedSl'),dp=document.getElementById('speedDisp');
+  if(sl&&dp){sl.value=v;dp.textContent=(v>=0?'+':'')+v;if(window._updR)window._updR();}
+}
 // ═══ DATA ════════════════════════════════════════════════════════════════════
 const EQ_BANDS=[{f:60,l:'60Hz'},{f:120,l:'120Hz'},{f:250,l:'250Hz'},{f:500,l:'500Hz'},{f:1000,l:'1kHz'},{f:2500,l:'2.5k'},{f:8000,l:'8kHz'},{f:16000,l:'16kHz'}];
 const NOTES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
@@ -1119,6 +1124,7 @@ wc.addEventListener('touchmove',e=>{seekFromEvent(e);},{passive:true});
 // ═══ BIG CONTROLS ═════════════════════════════════════════════════════════════
 function bigC(sid,did,mid,pid,step,fmt,cb){const sl=G(sid),dp=G(did);sl.addEventListener('input',()=>{dp.textContent=fmt(sl.value);cb&&cb();});G(mid).addEventListener('click',()=>{sl.value=Math.max(+sl.min,+sl.value-step);dp.textContent=fmt(sl.value);cb&&cb();});G(pid).addEventListener('click',()=>{sl.value=Math.min(+sl.max,+sl.value+step);dp.textContent=fmt(sl.value);cb&&cb();});}
 const updR=()=>{if(mainSrc)mainSrc.playbackRate.value=getFinalRate();};
+window._updR=updR;
 bigC('pitchSl','pitchDisp','pitchM','pitchP',1,v=>parseInt(v)>0?'+'+parseInt(v):parseInt(v),updR);
 bigC('speedSl','speedDisp','speedM','speedP',1,v=>parseInt(v)>0?'+'+parseInt(v):parseInt(v),updR);
 bigC('tuneSl','tuneDisp','tuneM','tuneP',1,v=>parseInt(v),()=>{updR();updateTuneQbtns();});
@@ -1225,6 +1231,7 @@ G('btnStopRec').onclick=()=>{
 G('btnPlayRec').onclick=()=>{const a=G('recPlayback');a.currentTime=0;a.play();};
 G('btnClrRec').onclick=clrVoiceLayer;
 window.clrVoiceLayer=()=>{voiceLayerBuf=null;G('recPlayback').src='';G('vlayer').style.display='none';G('btnPlayRec').disabled=true;G('btnClrRec').disabled=true;G('vfName').textContent='';};
+window._clrVoiceLayer=window.clrVoiceLayer;
 G('voiceFileIn').onchange=async function(){
   const f=this.files[0];if(!f)return;
   G('vfName').textContent=f.name;G('recPlayback').src=URL.createObjectURL(f);G('vlayer').style.display='block';G('btnPlayRec').disabled=false;G('btnClrRec').disabled=false;
@@ -1254,11 +1261,6 @@ function drawRecViz(){
 // ═══ QUICK START RECORD (standalone, works without song loaded) ═══════════════
 let srRecorder=null,srStream=null,srChunks=[],srBlob=null,srRaf=null,srAC=null,srAnalyser=null;
 
-window.quickStartRecord=()=>{
-  G('standaloneRec').style.display='block';
-  G('standaloneRec').scrollIntoView({behavior:'smooth',block:'nearest'});
-};
-
 G('srBtnRec').onclick=async()=>{
   if(srRecorder&&srRecorder.state==='recording')return;
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){pill('srPill','err','Mic not available in this browser');return;}
@@ -1287,7 +1289,7 @@ G('srBtnStop').onclick=()=>{
   if(srRecorder&&srRecorder.state==='recording'){srRecorder.stop();if(srStream)srStream.getTracks().forEach(t=>t.stop());}
   if(srAC){try{srAC.close();}catch(e){}srAC=null;srAnalyser=null;}
   if(srRaf){cancelAnimationFrame(srRaf);srRaf=null;}
-  G('srBtnRec').innerHTML='<span class="recdot"></span> Record';
+  G('srBtnRec').innerHTML='<span class="recdot"></span> Start Recording';
   G('srBtnStop').disabled=true;
 };
 
@@ -1303,14 +1305,6 @@ G('srBtnLoad').onclick=async()=>{
 // ═══ YOUTUBE DRAG TARGET ══════════════════════════════════════════════════════
 const ytDT=G('ytDragTarget');
 if(ytDT){ytDT.onclick=()=>G('fi').click();ytDT.addEventListener('dragover',e=>{e.preventDefault();ytDT.classList.add('over')});ytDT.addEventListener('dragleave',()=>ytDT.classList.remove('over'));ytDT.addEventListener('drop',e=>{e.preventDefault();ytDT.classList.remove('over');loadFiles([...e.dataTransfer.files]);G('dz').scrollIntoView({behavior:'smooth',block:'start'});});}
-
-// ═══ SCROLL HELPERS ═══════════════════════════════════════════════════════════
-window.scrollToYt=()=>{
-  if(G('stContent').style.display==='none'){window.open('https://yt2mp3.sc/','_blank');return;}
-  document.querySelectorAll('.tab').forEach(t=>{if(t.dataset.t==='youtube')t.click();});
-  G('studio').scrollIntoView({behavior:'smooth',block:'start'});
-};
-window.scrollToRecord=()=>{quickStartRecord();};
 
 // ═══ DOWNLOAD ═════════════════════════════════════════════════════════════════
 G('btnDl').onclick=async()=>{
