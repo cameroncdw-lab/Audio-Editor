@@ -246,7 +246,9 @@ input[type=range].vert::-webkit-slider-thumb{width:12px;height:12px}
 .vltitle{font-size:12px;font-weight:600}
 audio{width:100%;height:22px;filter:invert(1) hue-rotate(180deg) brightness(.65)}
 
-/* QUICK LOAD OPTIONS */
+/* STANDALONE RECORD CARD */
+.standalone-rec{background:var(--c1);border:1px solid rgba(245,101,101,0.3);border-radius:var(--r2);padding:12px 14px;margin-bottom:14px}
+.sr-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:13px;font-weight:600}
 .quickload{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
 .ql-option{background:var(--c1);border:1px solid var(--b1);border-radius:var(--r2);padding:12px 10px;text-align:center;cursor:pointer;transition:all .15s}
 .ql-option:hover{border-color:rgba(32,217,160,0.3);background:var(--grn2)}
@@ -282,11 +284,13 @@ audio{width:100%;height:22px;filter:invert(1) hue-rotate(180deg) brightness(.65)
 .yt-drag-target{border:1.5px dashed rgba(32,217,160,0.25);border-radius:var(--r2);padding:24px;text-align:center;cursor:pointer;transition:all .15s;background:var(--c3)}
 .yt-drag-target:hover,.yt-drag-target.over{border-color:var(--grn);background:var(--grn2)}
 
-/* YOUTUBE */
-.ytcard{background:var(--c2);border:1px solid var(--b1);border-radius:var(--r2);padding:14px;margin-bottom:10px}
-.ytnote{font-size:11px;color:var(--txt2);line-height:1.7;padding:10px;background:var(--c3);border-radius:var(--r)}
-.ytnote a{color:var(--grn)}
-.ytnote strong{color:var(--txt)}
+/* YOUTUBE BIG LINKS */
+.yt-big-link{display:flex;align-items:center;gap:14px;background:var(--c2);border:1px solid var(--b2);border-radius:var(--r2);padding:14px 16px;text-decoration:none;transition:all .15s;cursor:pointer}
+.yt-big-link:hover{border-color:rgba(32,217,160,0.4);background:var(--grn2)}
+.yt-big-link-ico{font-size:24px;flex-shrink:0}
+.yt-big-link-title{font-size:14px;font-weight:700;color:var(--txt);margin-bottom:3px}
+.yt-big-link-sub{font-size:11px;color:var(--txt2)}
+.yt-big-link-arrow{font-size:18px;color:var(--grn);margin-left:auto;flex-shrink:0}
 
 /* DL BAR */
 .dlbar{padding:11px 14px;border-top:1px solid var(--b1);display:flex;align-items:center;gap:7px;flex-wrap:wrap}
@@ -338,10 +342,29 @@ audio{width:100%;height:22px;filter:invert(1) hue-rotate(180deg) brightness(.65)
     <div class="ql-lbl">YouTube → MP3</div>
     <div class="ql-sub">Get audio from YouTube</div>
   </div>
-  <div class="ql-option" id="qlRecord" onclick="scrollToRecord()">
+  <div class="ql-option" id="qlRecord" onclick="quickStartRecord()">
     <div class="ql-ico">🎙</div>
     <div class="ql-lbl">Record audio</div>
-    <div class="ql-sub">Use your microphone</div>
+    <div class="ql-sub">Tap to start mic</div>
+  </div>
+</div>
+
+<!-- STANDALONE RECORD CARD -->
+<div class="standalone-rec" id="standaloneRec" style="display:none">
+  <div class="sr-hdr">
+    <span>🎙 Recording</span>
+    <div style="display:flex;gap:6px;align-items:center">
+      <span class="pill" id="srPill"></span>
+      <button class="btn" style="height:24px;font-size:10px;padding:0 8px" onclick="G('standaloneRec').style.display='none'">✕</button>
+    </div>
+  </div>
+  <div style="height:44px;background:var(--c3);border-radius:var(--r);margin-bottom:8px;overflow:hidden">
+    <canvas id="srCanvas" height="44" style="width:100%;display:block"></canvas>
+  </div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+    <button class="btn r" id="srBtnRec"><span class="recdot" id="srDot"></span> Record</button>
+    <button class="btn" id="srBtnStop" disabled>■ Stop</button>
+    <button class="btn g" id="srBtnLoad" disabled>✓ Load into Studio</button>
   </div>
 </div>
 
@@ -656,48 +679,42 @@ audio{width:100%;height:22px;filter:invert(1) hue-rotate(180deg) brightness(.65)
 
     <!-- YOUTUBE -->
     <div class="panel" id="tab-youtube">
+      <div style="font-size:13px;font-weight:600;margin-bottom:12px">Get audio from YouTube in 3 steps:</div>
 
-      <div class="yt-section">
-        <div class="yt-step-hdr"><span class="yt-step-num">1</span> Find the YouTube video</div>
-        <div class="yt-search-row" style="margin-bottom:8px">
-          <input class="ytinp" id="ytSearchInp" type="text" placeholder="Search e.g. 'Blinding Lights' or paste a YouTube URL">
-          <button class="btn b" id="btnYtSearch">🔍 Search YouTube</button>
-        </div>
-        <div style="font-size:10px;color:var(--txt3)">This opens YouTube in a new tab. Find the video, copy the URL from the address bar, then come back here.</div>
+      <div style="font-size:12px;color:var(--txt2);line-height:2;margin-bottom:16px">
+        <b style="color:var(--txt)">1.</b> Go to YouTube, find the video, copy the URL from the address bar<br>
+        <b style="color:var(--txt)">2.</b> Click one of the links below, paste the URL, download the MP3<br>
+        <b style="color:var(--txt)">3.</b> Come back here and drag the MP3 onto the drop zone at the top
       </div>
 
-      <div class="yt-section">
-        <div class="yt-step-hdr"><span class="yt-step-num">2</span> Paste the YouTube URL & extract MP3</div>
-        <div class="yt-search-row" style="margin-bottom:10px">
-          <input class="ytinp" id="ytUrlInp" type="text" placeholder="Paste YouTube URL here — e.g. https://youtube.com/watch?v=...">
-          <button class="btn b" id="btnYtGo">Go</button>
-        </div>
-        <div id="ytExtractBtns" style="display:none">
-          <div style="font-size:11px;color:var(--txt2);margin-bottom:8px">Click one of these to open the converter with your video pre-loaded:</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <a class="btn g" id="btnYtmp3" href="#" target="_blank" style="font-size:12px">▶ Open in YTMP3 (yt2mp3.sc)</a>
-            <a class="btn b" id="btnY2mate" href="#" target="_blank" style="font-size:12px">▶ Open in Y2Mate</a>
-            <a class="btn" id="btnCobalt" href="#" target="_blank" style="font-size:12px">⚡ Open in Cobalt.tools</a>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+        <a href="https://yt2mp3.sc/" target="_blank" class="yt-big-link">
+          <div class="yt-big-link-ico">🎵</div>
+          <div>
+            <div class="yt-big-link-title">YTMP3 — yt2mp3.sc</div>
+            <div class="yt-big-link-sub">yt2mp3.sc · paste URL → choose MP3 → Download</div>
           </div>
-          <div class="yt-extract-note" style="margin-top:10px">On those sites: paste the URL if not pre-filled → choose <b>MP3</b> → click Download → save the file.</div>
-        </div>
-        <div id="ytUrlErr" style="display:none;font-size:11px;color:var(--red);margin-top:6px"></div>
+          <div class="yt-big-link-arrow">→</div>
+        </a>
+        <a href="https://en1.y2mate.is/n2u/youtube-to-mp3.html" target="_blank" class="yt-big-link">
+          <div class="yt-big-link-ico">🎶</div>
+          <div>
+            <div class="yt-big-link-title">Y2Mate</div>
+            <div class="yt-big-link-sub">y2mate.is · paste URL → convert → Download MP3</div>
+          </div>
+          <div class="yt-big-link-arrow">→</div>
+        </a>
       </div>
 
-      <div class="yt-section" id="ytStep3" style="display:none">
-        <div class="yt-step-hdr"><span class="yt-step-num">3</span> Drop the downloaded MP3 here</div>
-        <div class="yt-drag-target" id="ytDragTarget">
-          <div style="font-size:28px;margin-bottom:6px">⬇</div>
-          <div style="font-size:13px;font-weight:600;margin-bottom:3px">Drop your MP3 file here</div>
-          <div style="font-size:11px;color:var(--txt2)">Or click to browse for it</div>
-        </div>
+      <div class="yt-drag-target" id="ytDragTarget">
+        <div style="font-size:24px;margin-bottom:6px">⬇</div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:3px">Drop downloaded MP3 here</div>
+        <div style="font-size:11px;color:var(--txt2)">Or click to browse for the file</div>
       </div>
 
-      <div class="yt-section">
-        <div class="yt-step-hdr">🎵 What about Spotify?</div>
-        <div class="yt-extract-note">Spotify encrypts all audio — no tool can legally extract it. Search for the same song on YouTube instead and use the steps above.</div>
+      <div style="margin-top:12px;padding:10px;background:var(--c2);border-radius:var(--r);font-size:11px;color:var(--txt3)">
+        🎵 <b style="color:var(--txt2)">Spotify?</b> Spotify audio can't be downloaded — search for the same song on YouTube and use the links above instead.
       </div>
-
     </div>
 
     <!-- DOWNLOAD BAR -->
@@ -1234,33 +1251,66 @@ function drawRecViz(){
   function f(){if(!recAnalyser)return;const d=new Uint8Array(recAnalyser.frequencyBinCount);recAnalyser.getByteTimeDomainData(d);ctx.fillStyle='#1a1a23';ctx.fillRect(0,0,c.width,c.height);ctx.strokeStyle='#20d9a0';ctx.lineWidth=1.5;ctx.beginPath();const sw=c.width/d.length;let x=0;for(let i=0;i<d.length;i++){const y=c.height/2+(d[i]/128-1)*c.height*.42;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);x+=sw;}ctx.stroke();recRaf=requestAnimationFrame(f);}f();
 }
 
+// ═══ QUICK START RECORD (standalone, works without song loaded) ═══════════════
+let srRecorder=null,srStream=null,srChunks=[],srBlob=null,srRaf=null,srAC=null,srAnalyser=null;
+
+window.quickStartRecord=()=>{
+  G('standaloneRec').style.display='block';
+  G('standaloneRec').scrollIntoView({behavior:'smooth',block:'nearest'});
+};
+
+G('srBtnRec').onclick=async()=>{
+  if(srRecorder&&srRecorder.state==='recording')return;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){pill('srPill','err','Mic not available in this browser');return;}
+  try{srStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});}
+  catch(err){
+    const msg=err.name==='NotAllowedError'?'Mic blocked — click the 🔒 icon in your address bar, set Microphone to Allow, then try again':err.name==='NotFoundError'?'No microphone found on this device':'Mic error: '+err.message;
+    pill('srPill','err',msg);return;
+  }
+  srAC=new AudioContext();srAnalyser=srAC.createAnalyser();srAnalyser.fftSize=512;
+  srAC.createMediaStreamSource(srStream).connect(srAnalyser);
+  srChunks=[];
+  const mime=MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?'audio/webm;codecs=opus':MediaRecorder.isTypeSupported('audio/webm')?'audio/webm':'audio/ogg';
+  srRecorder=new MediaRecorder(srStream,{mimeType:mime});
+  srRecorder.ondataavailable=e=>{if(e.data&&e.data.size>0)srChunks.push(e.data);};
+  srRecorder.onstop=()=>{srBlob=new Blob(srChunks,{type:mime});G('srBtnLoad').disabled=false;pill('srPill','ok','Done! Click Load into Studio');};
+  srRecorder.start(100);
+  G('srBtnRec').innerHTML='<span class="recdot a"></span> Recording…';
+  G('srBtnStop').disabled=false;
+  pill('srPill','ld','Recording…');
+  const c=G('srCanvas'),ctx=c.getContext('2d');c.width=c.offsetWidth||600;
+  function drawSr(){if(!srAnalyser)return;const d=new Uint8Array(srAnalyser.frequencyBinCount);srAnalyser.getByteTimeDomainData(d);ctx.fillStyle='#1a1a23';ctx.fillRect(0,0,c.width,c.height);ctx.strokeStyle='#f56565';ctx.lineWidth=1.5;ctx.beginPath();const sw=c.width/d.length;let x=0;for(let i=0;i<d.length;i++){const y=c.height/2+(d[i]/128-1)*c.height*.42;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);x+=sw;}ctx.stroke();srRaf=requestAnimationFrame(drawSr);}
+  drawSr();
+};
+
+G('srBtnStop').onclick=()=>{
+  if(srRecorder&&srRecorder.state==='recording'){srRecorder.stop();if(srStream)srStream.getTracks().forEach(t=>t.stop());}
+  if(srAC){try{srAC.close();}catch(e){}srAC=null;srAnalyser=null;}
+  if(srRaf){cancelAnimationFrame(srRaf);srRaf=null;}
+  G('srBtnRec').innerHTML='<span class="recdot"></span> Record';
+  G('srBtnStop').disabled=true;
+};
+
+G('srBtnLoad').onclick=async()=>{
+  if(!srBlob)return;
+  const fname='recording-'+Date.now()+'.webm';
+  const file=new File([srBlob],fname,{type:srBlob.type});
+  songs.push({file,name:fname,buf:null});renderSongs();
+  G('standaloneRec').style.display='none';srBlob=null;G('srBtnLoad').disabled=true;
+  selectSong(songs.length-1);
+};
+
+// ═══ YOUTUBE DRAG TARGET ══════════════════════════════════════════════════════
+const ytDT=G('ytDragTarget');
+if(ytDT){ytDT.onclick=()=>G('fi').click();ytDT.addEventListener('dragover',e=>{e.preventDefault();ytDT.classList.add('over')});ytDT.addEventListener('dragleave',()=>ytDT.classList.remove('over'));ytDT.addEventListener('drop',e=>{e.preventDefault();ytDT.classList.remove('over');loadFiles([...e.dataTransfer.files]);G('dz').scrollIntoView({behavior:'smooth',block:'start'});});}
+
 // ═══ SCROLL HELPERS ═══════════════════════════════════════════════════════════
 window.scrollToYt=()=>{
-  if(G('stContent').style.display==='none'){G('dz').scrollIntoView({behavior:'smooth'});return;}
+  if(G('stContent').style.display==='none'){window.open('https://yt2mp3.sc/','_blank');return;}
   document.querySelectorAll('.tab').forEach(t=>{if(t.dataset.t==='youtube')t.click();});
   G('studio').scrollIntoView({behavior:'smooth',block:'start'});
 };
-window.scrollToRecord=()=>{
-  if(G('stContent').style.display==='none'){alert('Upload a song first, then use the Record tab to layer your voice over it.');return;}
-  document.querySelectorAll('.tab').forEach(t=>{if(t.dataset.t==='record')t.click();});
-  G('studio').scrollIntoView({behavior:'smooth',block:'start'});
-};
-
-// ═══ YOUTUBE TAB ═══════════════════════════════════════════════════════════════
-G('btnYtSearch').onclick=()=>{const q=G('ytSearchInp').value.trim();window.open(q?'https://www.youtube.com/results?search_query='+encodeURIComponent(q):'https://www.youtube.com','_blank');};
-G('ytSearchInp').addEventListener('keydown',e=>{if(e.key==='Enter')G('btnYtSearch').click();});
-G('btnYtGo').onclick=()=>{
-  const url=G('ytUrlInp').value.trim();const errEl=G('ytUrlErr'),btns=G('ytExtractBtns'),step3=G('ytStep3');
-  const m=url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/|v\/))([a-zA-Z0-9_-]{11})/);
-  if(!m){errEl.textContent="Doesn't look like a YouTube URL — copy the full URL from your browser address bar.";errEl.style.display='block';btns.style.display='none';step3.style.display='none';return;}
-  errEl.style.display='none';btns.style.display='block';step3.style.display='block';
-  G('btnYtmp3').href='https://yt2mp3.sc/?url='+encodeURIComponent(url);
-  G('btnY2mate').href='https://en1.y2mate.is/n2u/youtube-to-mp3.html?url='+encodeURIComponent(url);
-  G('btnCobalt').href='https://cobalt.tools/?u='+encodeURIComponent(url);
-};
-G('ytUrlInp').addEventListener('keydown',e=>{if(e.key==='Enter')G('btnYtGo').click();});
-const ytDT=G('ytDragTarget');
-if(ytDT){ytDT.onclick=()=>G('fi').click();ytDT.addEventListener('dragover',e=>{e.preventDefault();ytDT.classList.add('over')});ytDT.addEventListener('dragleave',()=>ytDT.classList.remove('over'));ytDT.addEventListener('drop',e=>{e.preventDefault();ytDT.classList.remove('over');loadFiles([...e.dataTransfer.files]);G('dz').scrollIntoView({behavior:'smooth',block:'start'});});}
+window.scrollToRecord=()=>{quickStartRecord();};
 
 // ═══ DOWNLOAD ═════════════════════════════════════════════════════════════════
 G('btnDl').onclick=async()=>{
