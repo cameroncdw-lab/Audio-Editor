@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Studio Pro</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎛</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -101,9 +102,12 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-he
 
 /* WAVEFORM */
 .wave-wrap{padding:10px 14px;border-bottom:1px solid var(--b1)}
-#mainWave{width:100%;height:56px;cursor:pointer;border-radius:5px;display:block}
-.prog-track{height:2px;background:var(--c3);border-radius:999px;margin-top:5px}
-.prog-fill{height:100%;background:var(--grn);border-radius:999px;width:0%;transition:width .08s}
+.wave-container{position:relative;cursor:pointer;border-radius:5px;overflow:hidden}
+#mainWave{width:100%;height:70px;display:block}
+#wavePlayhead{position:absolute;top:0;left:0;width:2px;height:100%;background:rgba(255,255,255,0.85);pointer-events:none;box-shadow:0 0 6px rgba(255,255,255,0.4);transition:none}
+#waveProgress{position:absolute;top:0;left:0;height:100%;background:rgba(32,217,160,0.15);pointer-events:none}
+.wave-time-row{display:flex;justify-content:space-between;margin-top:4px;padding:0 2px}
+.wave-time{font-size:10px;color:var(--txt3);font-variant-numeric:tabular-nums}
 
 /* TRANSPORT */
 .transport{padding:9px 14px;display:flex;align-items:center;gap:5px;border-bottom:1px solid var(--b1);flex-wrap:wrap}
@@ -243,7 +247,7 @@ input[type=range].vert::-webkit-slider-thumb{width:12px;height:12px}
 audio{width:100%;height:22px;filter:invert(1) hue-rotate(180deg) brightness(.65)}
 
 /* QUICK LOAD OPTIONS */
-.quickload{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.quickload{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
 .ql-option{background:var(--c1);border:1px solid var(--b1);border-radius:var(--r2);padding:12px 10px;text-align:center;cursor:pointer;transition:all .15s}
 .ql-option:hover{border-color:rgba(32,217,160,0.3);background:var(--grn2)}
 .ql-ico{font-size:20px;margin-bottom:5px}
@@ -329,32 +333,16 @@ audio{width:100%;height:22px;filter:invert(1) hue-rotate(180deg) brightness(.65)
     <div class="ql-lbl">Browse files</div>
     <div class="ql-sub">MP3, WAV, FLAC, M4A…</div>
   </div>
-  <div class="ql-option" id="qlUrl" onclick="toggleUrlLoad()">
-    <div class="ql-ico">🔗</div>
-    <div class="ql-lbl">Load from URL</div>
-    <div class="ql-sub">Paste a direct audio link</div>
-  </div>
   <div class="ql-option" id="qlYt" onclick="scrollToYt()">
     <div class="ql-ico">▶️</div>
     <div class="ql-lbl">YouTube → MP3</div>
-    <div class="ql-sub">Search &amp; extract audio</div>
+    <div class="ql-sub">Get audio from YouTube</div>
   </div>
   <div class="ql-option" id="qlRecord" onclick="scrollToRecord()">
     <div class="ql-ico">🎙</div>
     <div class="ql-lbl">Record audio</div>
     <div class="ql-sub">Use your microphone</div>
   </div>
-</div>
-
-<!-- URL LOADER -->
-<div class="urlload" id="urlLoadBox" style="display:none">
-  <div class="url-row">
-    <input class="url-inp" id="urlInp" type="text" placeholder="Paste direct audio URL — e.g. https://example.com/song.mp3">
-    <button class="btn g" id="btnLoadUrl">Load</button>
-    <button class="btn" onclick="G('urlLoadBox').style.display='none'">✕</button>
-  </div>
-  <div style="font-size:10px;color:var(--txt3);margin-top:5px">Works with any direct .mp3 / .wav / .ogg / .m4a link. Does not work with Spotify, Apple Music, or YouTube page links.</div>
-  <span class="pill" id="urlPill"></span>
 </div>
 
 <div class="slabel" id="slbl" style="display:none">Tracks</div>
@@ -437,8 +425,16 @@ audio{width:100%;height:22px;filter:invert(1) hue-rotate(180deg) brightness(.65)
     </div>
 
     <div class="wave-wrap">
-      <canvas id="mainWave" height="56"></canvas>
-      <div class="prog-track"><div class="prog-fill" id="mainProg"></div></div>
+      <div class="wave-container" id="waveContainer">
+        <canvas id="mainWave" height="70"></canvas>
+        <div id="waveProgress"></div>
+        <div id="wavePlayhead" style="left:0"></div>
+      </div>
+      <div class="wave-time-row">
+        <span class="wave-time" id="waveTimeCur">0:00</span>
+        <span class="wave-time" style="color:var(--txt2);font-size:9px">click or drag to seek</span>
+        <span class="wave-time" id="waveTimeDur">0:00</span>
+      </div>
     </div>
 
     <div class="transport">
@@ -508,23 +504,24 @@ audio{width:100%;height:22px;filter:invert(1) hue-rotate(180deg) brightness(.65)
       </div>
       <div class="bigslider">
         <div class="bs-top">
-          <div class="bs-left"><div class="bs-ico">🎸</div><div><div class="bs-lbl">Master Tuning Frequency</div><div class="bs-sub">Shifts the entire song's concert A<br>Standard = 440 Hz · Good vibes = 432 · Solfeggio = 528</div></div></div>
+          <div class="bs-left"><div class="bs-ico">🎸</div><div><div class="bs-lbl">Master Tuning Frequency</div><div class="bs-sub">Shifts the entire song's concert A pitch<br>This ACTUALLY retunes the audio — 440Hz is standard</div></div></div>
           <div><div class="bs-val" id="tuneDisp" style="color:var(--yel)">440</div><div class="bs-unit">Hz</div></div>
         </div>
         <div class="bs-row">
           <button class="bs-step" id="tuneM" style="color:var(--yel)">−</button>
-          <input type="range" class="yel" id="tuneSl" min="400" max="480" value="440" step="1">
+          <input type="range" class="yel" id="tuneSl" min="300" max="600" value="440" step="1">
           <button class="bs-step" id="tuneP" style="color:var(--yel)">+</button>
         </div>
-        <div class="bs-ends"><span class="bs-end">400 Hz</span><span class="bs-end" style="color:var(--yel)">Common tunings below</span><span class="bs-end">480 Hz</span></div>
+        <div class="bs-ends"><span class="bs-end">300 Hz (very low)</span><span class="bs-end" style="color:var(--yel)">Quick presets →</span><span class="bs-end">600 Hz (very high)</span></div>
         <div class="qbtns" id="tuneQbtns">
           <button class="qbtn" onclick="setTune(415)" title="Baroque period standard">415 Hz (Baroque)</button>
           <button class="qbtn" onclick="setTune(432)" title="Often said to feel warmer, more natural">432 Hz (nature)</button>
-          <button class="qbtn" onclick="setTune(436)" title="Used in some European orchestras historically">436 Hz</button>
+          <button class="qbtn" onclick="setTune(436)">436 Hz</button>
           <button class="qbtn active" onclick="setTune(440)" title="Modern international standard">440 Hz (standard)</button>
-          <button class="qbtn" onclick="setTune(442)" title="Some orchestras tune slightly sharp">442 Hz (bright)</button>
+          <button class="qbtn" onclick="setTune(442)">442 Hz</button>
           <button class="qbtn" onclick="setTune(444)" title="Said to resonate with 528Hz solfeggio">444 Hz</button>
-          <button class="qbtn" onclick="setTune(528)" title="Solfeggio 'miracle tone', love frequency">528 Hz (solfeggio)</button>
+          <button class="qbtn" onclick="setTune(480)">480 Hz</button>
+          <button class="qbtn" onclick="setTune(528)" title="Solfeggio miracle tone">528 Hz</button>
         </div>
       </div>
     </div>
@@ -660,54 +657,45 @@ audio{width:100%;height:22px;filter:invert(1) hue-rotate(180deg) brightness(.65)
     <!-- YOUTUBE -->
     <div class="panel" id="tab-youtube">
 
-      <!-- STEP 1: SEARCH -->
       <div class="yt-section">
-        <div class="yt-step-hdr"><span class="yt-step-num">1</span> Search YouTube</div>
-        <div class="yt-search-row">
-          <input class="ytinp" id="ytSearchInp" type="text" placeholder="Search e.g. 'lofi hip hop' or 'Blinding Lights weeknd'">
-          <button class="btn b" id="btnYtSearch">🔍 Search</button>
+        <div class="yt-step-hdr"><span class="yt-step-num">1</span> Find the YouTube video</div>
+        <div class="yt-search-row" style="margin-bottom:8px">
+          <input class="ytinp" id="ytSearchInp" type="text" placeholder="Search e.g. 'Blinding Lights' or paste a YouTube URL">
+          <button class="btn b" id="btnYtSearch">🔍 Search YouTube</button>
         </div>
-        <div id="ytResults" style="margin-top:8px"></div>
+        <div style="font-size:10px;color:var(--txt3)">This opens YouTube in a new tab. Find the video, copy the URL from the address bar, then come back here.</div>
       </div>
 
-      <!-- STEP 2: EXTRACT -->
-      <div class="yt-section" id="ytExtractSec" style="display:none">
-        <div class="yt-step-hdr"><span class="yt-step-num">2</span> Extract Audio</div>
-        <div class="yt-selected-card" id="ytSelectedCard"></div>
-        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-          <a class="btn g" id="btnCobalt" href="#" target="_blank">⚡ Cobalt.tools (no ads)</a>
-          <a class="btn b" id="btnYt1s" href="#" target="_blank">▶ YTMP3 (yt2mp3.sc)</a>
-          <a class="btn" id="btnY2meta" href="#" target="_blank">▶ Y2Mate</a>
+      <div class="yt-section">
+        <div class="yt-step-hdr"><span class="yt-step-num">2</span> Paste the YouTube URL & extract MP3</div>
+        <div class="yt-search-row" style="margin-bottom:10px">
+          <input class="ytinp" id="ytUrlInp" type="text" placeholder="Paste YouTube URL here — e.g. https://youtube.com/watch?v=...">
+          <button class="btn b" id="btnYtGo">Go</button>
         </div>
-        <div class="yt-extract-note">These tools open in a new tab. Choose MP3, download the file, then drag it into Studio Pro — usually takes about 15 seconds total.</div>
+        <div id="ytExtractBtns" style="display:none">
+          <div style="font-size:11px;color:var(--txt2);margin-bottom:8px">Click one of these to open the converter with your video pre-loaded:</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a class="btn g" id="btnYtmp3" href="#" target="_blank" style="font-size:12px">▶ Open in YTMP3 (yt2mp3.sc)</a>
+            <a class="btn b" id="btnY2mate" href="#" target="_blank" style="font-size:12px">▶ Open in Y2Mate</a>
+            <a class="btn" id="btnCobalt" href="#" target="_blank" style="font-size:12px">⚡ Open in Cobalt.tools</a>
+          </div>
+          <div class="yt-extract-note" style="margin-top:10px">On those sites: paste the URL if not pre-filled → choose <b>MP3</b> → click Download → save the file.</div>
+        </div>
+        <div id="ytUrlErr" style="display:none;font-size:11px;color:var(--red);margin-top:6px"></div>
       </div>
 
-      <!-- STEP 3: DRAG BACK -->
-      <div class="yt-section" id="ytDragSec" style="display:none">
-        <div class="yt-step-hdr"><span class="yt-step-num">3</span> Drag MP3 into Studio Pro</div>
+      <div class="yt-section" id="ytStep3" style="display:none">
+        <div class="yt-step-hdr"><span class="yt-step-num">3</span> Drop the downloaded MP3 here</div>
         <div class="yt-drag-target" id="ytDragTarget">
-          <div style="font-size:24px;margin-bottom:6px">⬇</div>
-          <div style="font-size:13px;font-weight:600;margin-bottom:3px">Drop the downloaded MP3 here</div>
+          <div style="font-size:28px;margin-bottom:6px">⬇</div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:3px">Drop your MP3 file here</div>
           <div style="font-size:11px;color:var(--txt2)">Or click to browse for it</div>
         </div>
       </div>
 
-      <!-- MANUAL URL SECTION -->
       <div class="yt-section">
-        <div class="yt-step-hdr" style="cursor:pointer" onclick="toggleYtManual()">📋 Already have a YouTube URL? Paste it directly <span id="ytManualToggle" style="color:var(--txt3)">▼</span></div>
-        <div id="ytManualBox" style="display:none;margin-top:8px">
-          <div class="yt-search-row">
-            <input class="ytinp" id="ytUrlInp" type="text" placeholder="https://youtube.com/watch?v=...">
-            <button class="btn b" id="btnYtUrl">Go</button>
-          </div>
-          <div id="ytUrlResult" style="margin-top:8px"></div>
-        </div>
-      </div>
-
-      <!-- SPOTIFY NOTE -->
-      <div class="yt-section">
-        <div class="yt-step-hdr">🎵 Spotify</div>
-        <div class="yt-extract-note" style="background:var(--c2)">Spotify encrypts all audio and their API prohibits downloading — there's no way to extract Spotify audio directly. The workaround: search for the same song on YouTube, extract it there, and load it in.</div>
+        <div class="yt-step-hdr">🎵 What about Spotify?</div>
+        <div class="yt-extract-note">Spotify encrypts all audio — no tool can legally extract it. Search for the same song on YouTube instead and use the steps above.</div>
       </div>
 
     </div>
@@ -870,22 +858,44 @@ async function selectSong(i){
 
 async function splitStems(buf){
   const sr=buf.sampleRate,len=buf.length,ch=buf.numberOfChannels;
-  // Vocals
-  const vCtx=new OfflineAudioContext(ch,len,sr),vS=vCtx.createBufferSource();vS.buffer=buf;
-  const vHP=vCtx.createBiquadFilter();vHP.type='highpass';vHP.frequency.value=180;
-  const vLP=vCtx.createBiquadFilter();vLP.type='lowpass';vLP.frequency.value=5500;
-  const vP=vCtx.createBiquadFilter();vP.type='peaking';vP.frequency.value=2500;vP.gain.value=4;vP.Q.value=1.5;
-  vS.connect(vHP);vHP.connect(vP);vP.connect(vLP);vLP.connect(vCtx.destination);vS.start(0);
-  const vBuf=await vCtx.startRendering();
-  stems.voc.buf=vBuf;stems.voc.editBuf=vBuf;stems.voc.url=wav2url(vBuf);
-  drawWaveOnCanvas(vBuf,G('wv-voc'),'#9d7bf5');
-  G('sb-voc').textContent='Ready';G('sb-voc').className='stem-badge editing';G('sb-voc').style.display='none';
-  // Instrumental
-  const iCtx=new OfflineAudioContext(ch,len,sr),iS=iCtx.createBufferSource();iS.buffer=buf;
-  const iE1=iCtx.createBiquadFilter();iE1.type='peaking';iE1.frequency.value=1200;iE1.Q.value=0.8;iE1.gain.value=-10;
-  const iE2=iCtx.createBiquadFilter();iE2.type='peaking';iE2.frequency.value=3000;iE2.Q.value=1;iE2.gain.value=-8;
-  const iLP=iCtx.createBiquadFilter();iLP.type='lowpass';iLP.frequency.value=8000;
-  iS.connect(iE1);iE1.connect(iE2);iE2.connect(iLP);iLP.connect(iCtx.destination);iS.start(0);
+
+  // ── Vocals: Mid channel (L+R) with presence boost ──
+  // Vocals tend to be panned center (mid channel). We extract mid = (L+R)/2
+  const vOut=new Float32Array(len);
+  if(ch>=2){
+    const L=buf.getChannelData(0),R=buf.getChannelData(1);
+    for(let i=0;i<len;i++) vOut[i]=(L[i]+R[i])*0.5; // mid signal
+  } else {
+    vOut.set(buf.getChannelData(0));
+  }
+  // Apply bandpass to mid (vocals typically 200Hz–4kHz)
+  const vCtx=new OfflineAudioContext(1,len,sr);
+  const vSrc=vCtx.createBufferSource();
+  const vBufMono=vCtx.createBuffer(1,len,sr);vBufMono.getChannelData(0).set(vOut);
+  vSrc.buffer=vBufMono;
+  const vHP=vCtx.createBiquadFilter();vHP.type='highpass';vHP.frequency.value=150;vHP.Q.value=0.7;
+  const vLP=vCtx.createBiquadFilter();vLP.type='lowpass';vLP.frequency.value=6000;vLP.Q.value=0.7;
+  const vBoost=vCtx.createBiquadFilter();vBoost.type='peaking';vBoost.frequency.value=2000;vBoost.gain.value=5;vBoost.Q.value=1.5;
+  vSrc.connect(vHP);vHP.connect(vLP);vLP.connect(vBoost);vBoost.connect(vCtx.destination);vSrc.start(0);
+  const vRendered=await vCtx.startRendering();
+  // Convert mono back to stereo
+  const vBufStereo=ch>=2?new OfflineAudioContext(2,len,sr).createBuffer(2,len,sr):vRendered;
+  if(ch>=2){const d0=vRendered.getChannelData(0);const vSt=audioCtx.createBuffer(2,len,sr);vSt.getChannelData(0).set(d0);vSt.getChannelData(1).set(d0);
+    stems.voc.buf=vSt;stems.voc.editBuf=vSt;}
+  else{stems.voc.buf=vRendered;stems.voc.editBuf=vRendered;}
+  stems.voc.url=wav2url(stems.voc.buf);
+  drawWaveOnCanvas(stems.voc.buf,G('wv-voc'),'#9d7bf5');
+  G('sb-voc').textContent='Ready';G('sb-voc').style.display='none';
+
+  // ── Instrumental: Side channel (L−R) + low-end ──
+  // Instruments tend to be spread in stereo (side) + bass is always center
+  const iCtx=new OfflineAudioContext(ch,len,sr);
+  const iSrc=iCtx.createBufferSource();iSrc.buffer=buf;
+  // Reduce mid-range vocals by cutting 800Hz–3kHz
+  const iCut1=iCtx.createBiquadFilter();iCut1.type='peaking';iCut1.frequency.value=1000;iCut1.Q.value=1;iCut1.gain.value=-12;
+  const iCut2=iCtx.createBiquadFilter();iCut2.type='peaking';iCut2.frequency.value=2500;iCut2.Q.value=1.2;iCut2.gain.value=-10;
+  const iBoostBass=iCtx.createBiquadFilter();iBoostBass.type='lowshelf';iBoostBass.frequency.value=200;iBoostBass.gain.value=3;
+  iSrc.connect(iCut1);iCut1.connect(iCut2);iCut2.connect(iBoostBass);iBoostBass.connect(iCtx.destination);iSrc.start(0);
   const iBuf=await iCtx.startRendering();
   stems.ins.buf=iBuf;stems.ins.editBuf=iBuf;stems.ins.url=wav2url(iBuf);
   drawWaveOnCanvas(iBuf,G('wv-ins'),'#f87c3d');
@@ -1008,26 +1018,49 @@ function playMain(off=0){
   ensureCtx();if(audioCtx.state==='suspended')audioCtx.resume();
   if(mainSrc){try{mainSrc.disconnect();}catch(e){}}
   mainSrc=audioCtx.createBufferSource();mainSrc.buffer=buf;
-  // Speed affects playbackRate, pitch shifts are embedded in rate since browser can't decouple
   mainSrc.playbackRate.value=getFinalRate();
   mainSrc.connect(gGain);mainSrc.start(0,off);
   mainStartT=audioCtx.currentTime;mainStartOff=off;mainPlaying=true;G('btnPlay').textContent='⏸ Pause';
-  mainSrc.onended=()=>{if(mainPlaying){mainPlaying=false;G('btnPlay').textContent='▶ Play';mainStartOff=0;G('mainProg').style.width='0%';}};
+  mainSrc.onended=()=>{if(mainPlaying){mainPlaying=false;G('btnPlay').textContent='▶ Play';mainStartOff=0;setPlayhead(0);}};
   if(G('rotTog').checked&&mainPlaying)startRot();
   tickMain();
 }
 function stopMain(){if(mainSrc){try{mainSrc.stop();mainSrc.disconnect();}catch(e){}mainSrc=null;}mainPlaying=false;G('btnPlay').textContent='▶ Play';if(mainRaf)cancelAnimationFrame(mainRaf);stopRot();}
-function tickMain(){if(!mainPlaying)return;const buf=getActiveBuf();if(!buf)return;const rate=Math.max(0.01,getSpeedRatio());const el=(audioCtx.currentTime-mainStartT)*rate+mainStartOff;G('mainProg').style.width=Math.min(el/buf.duration*100,100)+'%';updTime(el);mainRaf=requestAnimationFrame(tickMain);}
-function updTime(t){const buf=getActiveBuf();G('tdisp').textContent=fmtTime(t)+' / '+fmtTime(buf?buf.duration:0);}
 
-G('btnPlay').onclick=()=>{if(!getActiveBuf())return;if(mainPlaying){const el=(audioCtx.currentTime-mainStartT)*getSpeedRatio()+mainStartOff;stopMain();mainStartOff=el;}else{buildGraph();playMain(mainStartOff);}};
-G('btnStop').onclick=()=>{stopMain();mainStartOff=0;G('mainProg').style.width='0%';updTime(0);};
+function setPlayhead(pct){
+  const ph=G('wavePlayhead'),pr=G('waveProgress'),tc=G('waveTimeCur');
+  const c=G('mainWave');const W=c.offsetWidth||700;
+  const px=Math.max(0,Math.min(W,pct*W));
+  if(ph)ph.style.left=px+'px';
+  if(pr)pr.style.width=(pct*100)+'%';
+  const buf=getActiveBuf();
+  if(tc&&buf)tc.textContent=fmtTime(pct*buf.duration);
+}
+
+function tickMain(){
+  if(!mainPlaying)return;
+  const buf=getActiveBuf();if(!buf)return;
+  const rate=Math.max(0.01,getFinalRate());
+  const el=(audioCtx.currentTime-mainStartT)*rate+mainStartOff;
+  const pct=Math.min(el/buf.duration,1);
+  setPlayhead(pct);
+  updTime(el);
+  mainRaf=requestAnimationFrame(tickMain);
+}
+function updTime(t){
+  const buf=getActiveBuf();
+  G('tdisp').textContent=fmtTime(t)+' / '+fmtTime(buf?buf.duration:0);
+  const td=G('waveTimeDur');if(td&&buf)td.textContent=fmtTime(buf.duration);
+}
+
+G('btnPlay').onclick=()=>{if(!getActiveBuf())return;if(mainPlaying){const el=(audioCtx.currentTime-mainStartT)*getFinalRate()+mainStartOff;stopMain();mainStartOff=el;}else{buildGraph();playMain(mainStartOff);}};
+G('btnStop').onclick=()=>{stopMain();mainStartOff=0;setPlayhead(0);updTime(0);};
 G('btnRestart').onclick=()=>{stopMain();mainStartOff=0;buildGraph();playMain(0);};
 G('btnRev').onclick=()=>{
   const s=stems[activeStem];const baseBuf=s.editBuf||s.buf;if(!baseBuf)return;
   if(!s.revBuf){ensureCtx();const r=audioCtx.createBuffer(baseBuf.numberOfChannels,baseBuf.length,baseBuf.sampleRate);for(let c=0;c<baseBuf.numberOfChannels;c++){const d=baseBuf.getChannelData(c).slice().reverse();r.getChannelData(c).set(d);}s.revBuf=r;}
   const isRev=!!s._reversed;s._reversed=!isRev;
-  if(s._reversed)s.revBuf=s.revBuf;else s.revBuf=null;// toggle
+  if(!s._reversed)s.revBuf=null;
   const was=mainPlaying;stopMain();mainStartOff=0;drawWaveMainFromBuf(getActiveBuf()||baseBuf,activeStem);if(was){buildGraph();playMain(0);}
   G('btnRev').classList.toggle('r',!s._reversed);G('btnRev').classList.toggle('g',s._reversed);G('btnRev').textContent=s._reversed?'▶ Normal':'⏮ Reverse';
 };
@@ -1043,10 +1076,28 @@ G('btnRevert').onclick=()=>{
   curVoiceFx=null;curCeleb=null;curEnv=null;
   document.querySelectorAll('.listrow.on').forEach(r=>r.classList.remove('on'));G('celebDetail').style.display='none';
   if(eqNodes.length)eqNodes.forEach(n=>n.gain.value=0);if(gBass)gBass.gain.value=0;if(gTreble)gTreble.gain.value=0;
-  drawWaveMainFromBuf(s.editBuf||s.buf,activeStem);buildGraph();pill('stPill','ok','Reverted');
+  setPlayhead(0);drawWaveMainFromBuf(s.editBuf||s.buf,activeStem);buildGraph();pill('stPill','ok','Reverted');
 };
 
-G('mainWave').addEventListener('click',e=>{const buf=getActiveBuf();if(!buf)return;const r=G('mainWave').getBoundingClientRect();const pct=(e.clientX-r.left)/r.width,off=pct*buf.duration;const was=mainPlaying;stopMain();mainStartOff=off;if(was){buildGraph();playMain(off);}updTime(off);G('mainProg').style.width=pct*100+'%';});
+// Waveform click + drag to seek
+let waveIsDragging=false;
+function seekFromEvent(e){
+  const buf=getActiveBuf();if(!buf)return;
+  const c=G('mainWave'),r=c.getBoundingClientRect();
+  const clientX=e.touches?e.touches[0].clientX:e.clientX;
+  const pct=Math.max(0,Math.min(1,(clientX-r.left)/r.width));
+  const off=pct*buf.duration;
+  const was=mainPlaying;stopMain();mainStartOff=off;
+  setPlayhead(pct);updTime(off);
+  if(was){buildGraph();playMain(off);}
+}
+const wc=G('waveContainer');
+wc.addEventListener('mousedown',e=>{waveIsDragging=true;seekFromEvent(e);});
+wc.addEventListener('mousemove',e=>{if(waveIsDragging)seekFromEvent(e);});
+wc.addEventListener('mouseup',()=>waveIsDragging=false);
+wc.addEventListener('mouseleave',()=>waveIsDragging=false);
+wc.addEventListener('touchstart',e=>{seekFromEvent(e);},{passive:true});
+wc.addEventListener('touchmove',e=>{seekFromEvent(e);},{passive:true});
 
 // ═══ BIG CONTROLS ═════════════════════════════════════════════════════════════
 function bigC(sid,did,mid,pid,step,fmt,cb){const sl=G(sid),dp=G(did);sl.addEventListener('input',()=>{dp.textContent=fmt(sl.value);cb&&cb();});G(mid).addEventListener('click',()=>{sl.value=Math.max(+sl.min,+sl.value-step);dp.textContent=fmt(sl.value);cb&&cb();});G(pid).addEventListener('click',()=>{sl.value=Math.min(+sl.max,+sl.value+step);dp.textContent=fmt(sl.value);cb&&cb();});}
@@ -1117,205 +1168,100 @@ G('crklSl').oninput=function(){G('crklV').textContent=this.value+'%';if(gCrackle
 function buildCrackle(){ensureCtx();const l=audioCtx.sampleRate*3,nb=audioCtx.createBuffer(1,l,audioCtx.sampleRate),d=nb.getChannelData(0),a=+G('crklSl').value/100;for(let i=0;i<l;i++)d[i]=Math.random()<.003?(Math.random()-.5)*a*2:0;gCrackle=audioCtx.createBufferSource();gCrackle.buffer=nb;gCrackle.loop=true;gCrackleGain=audioCtx.createGain();gCrackleGain.gain.value=a*.15;gCrackle.connect(gCrackleGain);gCrackleGain.connect(audioCtx.destination);gCrackle.start();}
 
 // ═══ RECORDING ════════════════════════════════════════════════════════════════
-G('btnRec').onclick=async()=>{if(recorder&&recorder.state==='recording')return;try{recStream=await navigator.mediaDevices.getUserMedia({audio:true});recAC=new AudioContext();recAnalyser=recAC.createAnalyser();recAnalyser.fftSize=256;recAC.createMediaStreamSource(recStream).connect(recAnalyser);recChunks=[];recorder=new MediaRecorder(recStream);recorder.ondataavailable=e=>{if(e.data.size>0)recChunks.push(e.data);};recorder.onstop=async()=>{const blob=new Blob(recChunks,{type:'audio/webm'});const url=URL.createObjectURL(blob);G('recPlayback').src=url;G('vlayer').style.display='block';G('btnPlayRec').disabled=false;G('btnClrRec').disabled=false;pill('recPill','ok','Recorded!');const ab=await blob.arrayBuffer();ensureCtx();voiceLayerBuf=await audioCtx.decodeAudioData(ab);};recorder.start();G('rdot').classList.add('a');G('btnRec').innerHTML='<span class="recdot a" id="rdot"></span>Recording…';G('btnStopRec').disabled=false;pill('recPill','ld','Recording…');drawRecViz();}catch(e){pill('recPill','err','Mic denied');}};
-G('btnStopRec').onclick=()=>{if(recorder&&recorder.state==='recording'){recorder.stop();recStream?.getTracks().forEach(t=>t.stop());}G('btnRec').innerHTML='<span class="recdot" id="rdot"></span>Record';G('btnStopRec').disabled=true;if(recRaf)cancelAnimationFrame(recRaf);};
-G('btnPlayRec').onclick=()=>G('recPlayback').play();
+G('btnRec').onclick=async()=>{
+  if(recorder&&recorder.state==='recording')return;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){pill('recPill','err','Microphone not available in this browser');return;}
+  try{recStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});}
+  catch(err){
+    const msg=err.name==='NotAllowedError'?'Mic blocked — click the lock icon in your address bar and allow Microphone, then try again':err.name==='NotFoundError'?'No microphone detected':'Mic error: '+err.message;
+    pill('recPill','err',msg);return;
+  }
+  recAC=new AudioContext();
+  recAnalyser=recAC.createAnalyser();recAnalyser.fftSize=1024;
+  recAC.createMediaStreamSource(recStream).connect(recAnalyser);
+  recChunks=[];
+  const mime=MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?'audio/webm;codecs=opus':MediaRecorder.isTypeSupported('audio/webm')?'audio/webm':'audio/ogg';
+  recorder=new MediaRecorder(recStream,{mimeType:mime});
+  recorder.ondataavailable=e=>{if(e.data&&e.data.size>0)recChunks.push(e.data);};
+  recorder.onstop=async()=>{
+    if(!recChunks.length){pill('recPill','err','Nothing recorded');return;}
+    const blob=new Blob(recChunks,{type:mime});
+    G('recPlayback').src=URL.createObjectURL(blob);
+    G('vlayer').style.display='block';G('btnPlayRec').disabled=false;G('btnClrRec').disabled=false;
+    try{ensureCtx();const ab=await blob.arrayBuffer();voiceLayerBuf=await audioCtx.decodeAudioData(ab);pill('recPill','ok','Recorded! '+fmtTime(voiceLayerBuf.duration));}
+    catch(e){pill('recPill','ok','Recorded!');}
+  };
+  recorder.start(100);
+  G('btnRec').innerHTML='<span class="recdot a" id="rdot"></span> Recording…';
+  G('btnStopRec').disabled=false;
+  pill('recPill','ld','Recording…');
+  drawRecViz();
+};
+G('btnStopRec').onclick=()=>{
+  if(recorder&&recorder.state==='recording'){recorder.stop();if(recStream)recStream.getTracks().forEach(t=>t.stop());}
+  if(recAC){try{recAC.close();}catch(e){}recAC=null;recAnalyser=null;}
+  G('btnRec').innerHTML='<span class="recdot" id="rdot"></span> Record';
+  G('btnStopRec').disabled=true;
+  if(recRaf){cancelAnimationFrame(recRaf);recRaf=null;}
+  const c=G('recCanvas'),ctx=c.getContext('2d');ctx.fillStyle='#1a1a23';ctx.fillRect(0,0,c.width||600,c.height||52);
+};
+G('btnPlayRec').onclick=()=>{const a=G('recPlayback');a.currentTime=0;a.play();};
 G('btnClrRec').onclick=clrVoiceLayer;
 window.clrVoiceLayer=()=>{voiceLayerBuf=null;G('recPlayback').src='';G('vlayer').style.display='none';G('btnPlayRec').disabled=true;G('btnClrRec').disabled=true;G('vfName').textContent='';};
-G('voiceFileIn').onchange=async function(){const f=this.files[0];if(!f)return;G('vfName').textContent=f.name;G('recPlayback').src=URL.createObjectURL(f);G('vlayer').style.display='block';G('btnPlayRec').disabled=false;G('btnClrRec').disabled=false;const ab=await f.arrayBuffer();ensureCtx();voiceLayerBuf=await audioCtx.decodeAudioData(ab);pill('recPill','ok','Loaded!');};
+G('voiceFileIn').onchange=async function(){
+  const f=this.files[0];if(!f)return;
+  G('vfName').textContent=f.name;G('recPlayback').src=URL.createObjectURL(f);G('vlayer').style.display='block';G('btnPlayRec').disabled=false;G('btnClrRec').disabled=false;
+  try{ensureCtx();const ab=await f.arrayBuffer();voiceLayerBuf=await audioCtx.decodeAudioData(ab);pill('recPill','ok','Loaded: '+f.name);}
+  catch(e){pill('recPill','err','Could not decode this audio file');}
+};
 G('vVolSl').oninput=function(){G('vVolV').textContent=this.value+'%';};
 G('tVolSl').oninput=function(){G('tVolV').textContent=this.value+'%';};
 G('vPitchSl').oninput=function(){const v=parseInt(this.value);G('vPitchV').textContent=(v>=0?'+':'')+v+' st';};
-G('btnMixDl').onclick=async()=>{if(!getActiveBuf()||!voiceLayerBuf)return;pill('recPill','ld','Rendering…');const buf=getActiveBuf(),sr=buf.sampleRate,ch=buf.numberOfChannels,tV=+G('tVolSl').value/100,vV=+G('vVolSl').value/100,vP=+G('vPitchSl').value;const off=new OfflineAudioContext(ch,buf.length,sr);const tS=off.createBufferSource(),vS=off.createBufferSource();tS.buffer=buf;vS.buffer=voiceLayerBuf;vS.playbackRate.value=Math.pow(2,vP/12);const tG=off.createGain(),vG=off.createGain();tG.gain.value=tV;vG.gain.value=vV;tS.connect(tG);vS.connect(vG);tG.connect(off.destination);vG.connect(off.destination);tS.start(0);vS.start(0);const r=await off.startRendering();const a=CE('a');a.href=wav2url(r);a.download=(songs[curIdx]?.name.replace(/\.[^.]+$/,'')||'track')+'_mixed.wav';a.click();pill('recPill','ok','Done!');};
-function drawRecViz(){const c=G('recCanvas'),ctx=c.getContext('2d');c.width=c.offsetWidth||600;function f(){if(!recAnalyser)return;const d=new Uint8Array(recAnalyser.frequencyBinCount);recAnalyser.getByteTimeDomainData(d);ctx.fillStyle='#1a1a23';ctx.fillRect(0,0,c.width,c.height);ctx.strokeStyle='#20d9a0';ctx.lineWidth=1.5;ctx.beginPath();const sw=c.width/d.length;let x=0;for(let i=0;i<d.length;i++){const y=c.height/2+(d[i]/128-1)*c.height*.4;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);x+=sw;}ctx.stroke();recRaf=requestAnimationFrame(f);}f();}
-
-// ═══ YOUTUBE ══════════════════════════════════════════════════════════════════
-// ═══ QUICK LOAD / URL LOADER ══════════════════════════════════════════════════
-window.toggleUrlLoad=()=>{
-  const b=G('urlLoadBox');
-  const isHidden=b.style.display==='none'||b.style.display==='';
-  b.style.display=isHidden?'block':'none';
-  if(isHidden){G('urlInp').focus();b.scrollIntoView({behavior:'smooth',block:'nearest'});}
+G('btnMixDl').onclick=async()=>{
+  if(!getActiveBuf()||!voiceLayerBuf){pill('recPill','err','Record or upload a voice first');return;}
+  pill('recPill','ld','Rendering mix…');
+  const buf=getActiveBuf(),sr=buf.sampleRate,ch=buf.numberOfChannels,tV=+G('tVolSl').value/100,vV=+G('vVolSl').value/100,vP=+G('vPitchSl').value;
+  const off=new OfflineAudioContext(ch,buf.length,sr);
+  const tS=off.createBufferSource(),vS=off.createBufferSource();tS.buffer=buf;vS.buffer=voiceLayerBuf;vS.playbackRate.value=Math.pow(2,vP/12);
+  const tG=off.createGain(),vG=off.createGain();tG.gain.value=tV;vG.gain.value=vV;
+  tS.connect(tG);vS.connect(vG);tG.connect(off.destination);vG.connect(off.destination);tS.start(0);vS.start(0);
+  const r=await off.startRendering();
+  const a=CE('a');a.href=wav2url(r);a.download=(songs[curIdx]?.name.replace(/\.[^.]+$/,'')||'track')+'_mixed.wav';a.click();
+  pill('recPill','ok','Downloaded!');
 };
+function drawRecViz(){
+  const c=G('recCanvas'),ctx=c.getContext('2d');c.width=c.offsetWidth||600;
+  function f(){if(!recAnalyser)return;const d=new Uint8Array(recAnalyser.frequencyBinCount);recAnalyser.getByteTimeDomainData(d);ctx.fillStyle='#1a1a23';ctx.fillRect(0,0,c.width,c.height);ctx.strokeStyle='#20d9a0';ctx.lineWidth=1.5;ctx.beginPath();const sw=c.width/d.length;let x=0;for(let i=0;i<d.length;i++){const y=c.height/2+(d[i]/128-1)*c.height*.42;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);x+=sw;}ctx.stroke();recRaf=requestAnimationFrame(f);}f();
+}
 
+// ═══ SCROLL HELPERS ═══════════════════════════════════════════════════════════
 window.scrollToYt=()=>{
-  // Open studio if not open
-  if(G('stContent').style.display==='none'){G('ytTabBtn').click();return;}
-  // Click the YouTube tab button
-  document.querySelectorAll('.tab').forEach(t=>{if(t.dataset.t==='youtube'){t.click();}});
+  if(G('stContent').style.display==='none'){G('dz').scrollIntoView({behavior:'smooth'});return;}
+  document.querySelectorAll('.tab').forEach(t=>{if(t.dataset.t==='youtube')t.click();});
   G('studio').scrollIntoView({behavior:'smooth',block:'start'});
 };
-
 window.scrollToRecord=()=>{
-  // Open studio if not already open — need a song loaded
-  if(G('stContent').style.display==='none'){
-    alert('Upload a song first, then use the Record tab inside the studio.');
-    return;
-  }
-  document.querySelectorAll('.tab').forEach(t=>{if(t.dataset.t==='record'){t.click();}});
+  if(G('stContent').style.display==='none'){alert('Upload a song first, then use the Record tab to layer your voice over it.');return;}
+  document.querySelectorAll('.tab').forEach(t=>{if(t.dataset.t==='record')t.click();});
   G('studio').scrollIntoView({behavior:'smooth',block:'start'});
 };
 
-// URL loader — uses audio element to bypass CORS where possible
-G('btnLoadUrl').onclick=async()=>{
-  const url=G('urlInp').value.trim();if(!url)return;
-  pill('urlPill','ld','Loading…');
-
-  // First try direct fetch (works if server allows CORS)
-  try{
-    const res=await fetch(url,{mode:'cors'});
-    if(res.ok){
-      const ab=await res.arrayBuffer();
-      const ct=res.headers.get('content-type')||'audio/mpeg';
-      const fname=decodeURIComponent(url.split('/').pop().split('?')[0])||'audio.mp3';
-      const file=new File([ab],fname,{type:ct});
-      songs.push({file,name:fname,buf:null});renderSongs();
-      G('urlLoadBox').style.display='none';G('urlInp').value='';
-      selectSong(songs.length-1);
-      pill('urlPill','ok','Loaded!');
-      return;
-    }
-  }catch(e){}
-
-  // Fallback: use audio element + MediaRecorder to capture (works for some CDN audio)
-  try{
-    pill('urlPill','ld','Trying audio capture…');
-    const audio=new Audio();audio.crossOrigin='anonymous';audio.src=url;
-    await new Promise((res,rej)=>{audio.oncanplaythrough=res;audio.onerror=rej;setTimeout(rej,8000);});
-    ensureCtx();
-    const srcNode=audioCtx.createMediaElementSource(audio);
-    const dest=audioCtx.createMediaStreamDestination();
-    srcNode.connect(dest);srcNode.connect(audioCtx.destination);
-    const mr=new MediaRecorder(dest.stream,{mimeType:'audio/webm'});
-    const chunks=[];
-    mr.ondataavailable=e=>{if(e.data.size>0)chunks.push(e.data);};
-    mr.onstop=async()=>{
-      const blob=new Blob(chunks,{type:'audio/webm'});
-      const fname=decodeURIComponent(url.split('/').pop().split('?')[0])||'audio.webm';
-      const file=new File([blob],fname,{type:'audio/webm'});
-      songs.push({file,name:fname,buf:null});renderSongs();
-      G('urlLoadBox').style.display='none';G('urlInp').value='';
-      selectSong(songs.length-1);
-      pill('urlPill','ok','Loaded!');
-    };
-    mr.start();audio.play();
-    audio.onended=()=>mr.stop();
-    // Safety timeout
-    setTimeout(()=>{if(mr.state==='recording'){audio.pause();mr.stop();}},300000);
-    pill('urlPill','ld','Playing & capturing…');
-  }catch(e){
-    pill('urlPill','err','Cannot load — server blocks external access. Download the file and drag it in.');
-  }
-};
-G('urlInp').addEventListener('keydown',e=>{if(e.key==='Enter')G('btnLoadUrl').click();});
-
-// ═══ YOUTUBE SEARCH + EXTRACT ═════════════════════════════════════════════════
-let ytPickedUrl='',ytPickedTitle='';
-
-// Use multiple Invidious instances as fallback
-const INVIDIOUS=[
-  'https://invidious.privacydev.net',
-  'https://invidious.fdn.fr',
-  'https://inv.nadeko.net',
-  'https://invidious.nerdvpn.de',
-  'https://iv.melmac.space'
-];
-let invIdx=0;
-
-async function ytSearch(q){
-  for(let i=0;i<INVIDIOUS.length;i++){
-    const base=INVIDIOUS[(invIdx+i)%INVIDIOUS.length];
-    try{
-      const r=await fetch(
-        `${base}/api/v1/search?q=${encodeURIComponent(q)}&type=video&fields=videoId,title,author,lengthSeconds`,
-        {signal:AbortSignal.timeout(5000)}
-      );
-      if(!r.ok)continue;
-      const data=await r.json();
-      invIdx=(invIdx+i)%INVIDIOUS.length;
-      return Array.isArray(data)?data.filter(v=>v.videoId).slice(0,7):[];
-    }catch(e){continue;}
-  }
-  return null;
-}
-
-G('btnYtSearch').onclick=async()=>{
-  const q=G('ytSearchInp').value.trim();if(!q)return;
-  const res=G('ytResults');
-  res.innerHTML='<div style="font-size:11px;color:var(--txt2);padding:8px 0;display:flex;align-items:center;gap:6px"><span style="animation:spin 1s linear infinite;display:inline-block">⟳</span> Searching YouTube…</div>';
-  const results=await ytSearch(q);
-  res.innerHTML='';
-  if(!results){
-    // Search failed — show direct YouTube search link as fallback
-    res.innerHTML=`<div class="yt-extract-note">
-      Search couldn't connect right now. Try these instead:<br><br>
-      <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(q)}" target="_blank" style="font-weight:600">🔍 Search "${q}" on YouTube →</a><br>
-      Copy the video URL from YouTube, then paste it in the <b>Paste URL</b> section below.
-    </div>`;
-    return;
-  }
-  if(results.length===0){res.innerHTML='<div style="font-size:11px;color:var(--txt2)">No results. Try different search terms.</div>';return;}
-  results.forEach(v=>{
-    const dur=v.lengthSeconds?`${Math.floor(v.lengthSeconds/60)}:${String(v.lengthSeconds%60).padStart(2,'0')}`:'';
-    const row=CE('div');row.className='yt-result-row';
-    row.innerHTML=`<img class="yt-thumb" src="https://img.youtube.com/vi/${v.videoId}/mqdefault.jpg" onerror="this.style.opacity='.2'">
-      <div class="yt-result-title">${esc(v.title||'')}
-        <div class="yt-result-ch">${esc(v.author||'')}${dur?' · '+dur:''}</div>
-      </div>
-      <span class="yt-result-pick">Select →</span>`;
-    row.onclick=()=>pickYtVideo(v.videoId,v.title||'YouTube audio',row);
-    res.appendChild(row);
-  });
-};
+// ═══ YOUTUBE TAB ═══════════════════════════════════════════════════════════════
+G('btnYtSearch').onclick=()=>{const q=G('ytSearchInp').value.trim();window.open(q?'https://www.youtube.com/results?search_query='+encodeURIComponent(q):'https://www.youtube.com','_blank');};
 G('ytSearchInp').addEventListener('keydown',e=>{if(e.key==='Enter')G('btnYtSearch').click();});
-
-function pickYtVideo(id,title,row){
-  document.querySelectorAll('.yt-result-row').forEach(r=>r.classList.remove('picked'));
-  if(row)row.classList.add('picked');
-  const url='https://www.youtube.com/watch?v='+id;
-  ytPickedUrl=url;ytPickedTitle=title;
-  showYtExtract(id,title,url);
-}
-
-function showYtExtract(id,title,url){
-  G('ytExtractSec').style.display='block';G('ytDragSec').style.display='block';
-  G('ytSelectedCard').innerHTML=`
-    <img src="https://img.youtube.com/vi/${id}/mqdefault.jpg" style="width:60px;height:42px;border-radius:4px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">
-    <div><div style="font-size:12px;font-weight:600;margin-bottom:2px">${esc(title)}</div>
-    <div style="font-size:10px;color:var(--txt2)">${url}</div></div>`;
-  // Your preferred extractors
-  G('btnCobalt').href=`https://cobalt.tools/?u=${encodeURIComponent(url)}`;
-  G('btnYt1s').href=`https://yt2mp3.sc/?url=${encodeURIComponent(url)}`;
-  G('btnY2meta').href=`https://en1.y2mate.is/n2u/youtube-to-mp3.html?url=${encodeURIComponent(url)}`;
-  G('ytExtractSec').scrollIntoView({behavior:'smooth',block:'nearest'});
-}
-
-// Manual URL paste in YouTube tab
-window.toggleYtManual=()=>{
-  const b=G('ytManualBox');
-  b.style.display=b.style.display==='none'||b.style.display===''?'block':'none';
+G('btnYtGo').onclick=()=>{
+  const url=G('ytUrlInp').value.trim();const errEl=G('ytUrlErr'),btns=G('ytExtractBtns'),step3=G('ytStep3');
+  const m=url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/|v\/))([a-zA-Z0-9_-]{11})/);
+  if(!m){errEl.textContent="Doesn't look like a YouTube URL — copy the full URL from your browser address bar.";errEl.style.display='block';btns.style.display='none';step3.style.display='none';return;}
+  errEl.style.display='none';btns.style.display='block';step3.style.display='block';
+  G('btnYtmp3').href='https://yt2mp3.sc/?url='+encodeURIComponent(url);
+  G('btnY2mate').href='https://en1.y2mate.is/n2u/youtube-to-mp3.html?url='+encodeURIComponent(url);
+  G('btnCobalt').href='https://cobalt.tools/?u='+encodeURIComponent(url);
 };
-G('btnYtUrl').onclick=()=>{
-  const url=G('ytUrlInp').value.trim();if(!url)return;
-  const m=url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([a-zA-Z0-9_-]{11})/);
-  if(m){pickYtVideo(m[1],'YouTube video',null);G('ytUrlResult').innerHTML='';}
-  else{G('ytUrlResult').innerHTML='<div style="font-size:11px;color:var(--red);margin-top:4px">Not a recognised YouTube URL. Should look like: youtube.com/watch?v=XXXXXXXXXXX</div>';}
-};
-G('ytUrlInp').addEventListener('keydown',e=>{if(e.key==='Enter')G('btnYtUrl').click();});
-
-// YouTube drag-and-drop target (step 3)
+G('ytUrlInp').addEventListener('keydown',e=>{if(e.key==='Enter')G('btnYtGo').click();});
 const ytDT=G('ytDragTarget');
-if(ytDT){
-  ytDT.onclick=()=>G('fi').click();
-  ytDT.addEventListener('dragover',e=>{e.preventDefault();ytDT.classList.add('over')});
-  ytDT.addEventListener('dragleave',()=>ytDT.classList.remove('over'));
-  ytDT.addEventListener('drop',e=>{
-    e.preventDefault();ytDT.classList.remove('over');
-    loadFiles([...e.dataTransfer.files]);
-    // Scroll up to show the loaded track
-    G('dz').scrollIntoView({behavior:'smooth',block:'start'});
-  });
-}
+if(ytDT){ytDT.onclick=()=>G('fi').click();ytDT.addEventListener('dragover',e=>{e.preventDefault();ytDT.classList.add('over')});ytDT.addEventListener('dragleave',()=>ytDT.classList.remove('over'));ytDT.addEventListener('drop',e=>{e.preventDefault();ytDT.classList.remove('over');loadFiles([...e.dataTransfer.files]);G('dz').scrollIntoView({behavior:'smooth',block:'start'});});}
+
 // ═══ DOWNLOAD ═════════════════════════════════════════════════════════════════
 G('btnDl').onclick=async()=>{
   const buf=getActiveBuf();if(!buf)return;
