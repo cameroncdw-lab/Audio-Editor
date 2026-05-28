@@ -232,6 +232,7 @@ input[type=range].vert::-webkit-slider-thumb{width:12px;height:12px}
 #recCanvas{width:100%;height:52px;display:block}
 .recdot{width:7px;height:7px;border-radius:50%;background:var(--red);display:inline-block;margin-right:4px}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.1}}.recdot.a{animation:blink .9s infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 .mixrow{display:flex;align-items:center;gap:8px;margin-bottom:5px}
 .mixlbl{font-size:11px;color:var(--txt2);width:65px;flex-shrink:0}
 .mixval{font-size:11px;font-weight:600;color:var(--grn);width:34px;text-align:right;flex-shrink:0}
@@ -674,9 +675,9 @@ audio{width:100%;height:22px;filter:invert(1) hue-rotate(180deg) brightness(.65)
         <div class="yt-step-hdr"><span class="yt-step-num">2</span> Extract Audio</div>
         <div class="yt-selected-card" id="ytSelectedCard"></div>
         <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-          <a class="btn g" id="btnCobalt" href="#" target="_blank">⚡ Extract with Cobalt (recommended)</a>
-          <a class="btn b" id="btnYt1s" href="#" target="_blank">Extract with yt1s</a>
-          <a class="btn" id="btnY2meta" href="#" target="_blank">Extract with y2meta</a>
+          <a class="btn g" id="btnCobalt" href="#" target="_blank">⚡ Cobalt.tools (no ads)</a>
+          <a class="btn b" id="btnYt1s" href="#" target="_blank">▶ YTMP3 (yt2mp3.sc)</a>
+          <a class="btn" id="btnY2meta" href="#" target="_blank">▶ Y2Mate</a>
         </div>
         <div class="yt-extract-note">These tools open in a new tab. Choose MP3, download the file, then drag it into Studio Pro — usually takes about 15 seconds total.</div>
       </div>
@@ -1130,64 +1131,138 @@ function drawRecViz(){const c=G('recCanvas'),ctx=c.getContext('2d');c.width=c.of
 
 // ═══ YOUTUBE ══════════════════════════════════════════════════════════════════
 // ═══ QUICK LOAD / URL LOADER ══════════════════════════════════════════════════
-window.toggleUrlLoad=()=>{const b=G('urlLoadBox');b.style.display=b.style.display==='none'?'block':'none';if(b.style.display==='block')G('urlInp').focus();};
-window.scrollToYt=()=>{document.querySelector('[data-t="youtube"]').click();G('studio').scrollIntoView({behavior:'smooth'});};
-window.scrollToRecord=()=>{G('studio').scrollIntoView({behavior:'smooth'});setTimeout(()=>document.querySelector('[data-t="record"]').click(),400);};
+window.toggleUrlLoad=()=>{
+  const b=G('urlLoadBox');
+  const isHidden=b.style.display==='none'||b.style.display==='';
+  b.style.display=isHidden?'block':'none';
+  if(isHidden){G('urlInp').focus();b.scrollIntoView({behavior:'smooth',block:'nearest'});}
+};
 
+window.scrollToYt=()=>{
+  // Open studio if not open
+  if(G('stContent').style.display==='none'){G('ytTabBtn').click();return;}
+  // Click the YouTube tab button
+  document.querySelectorAll('.tab').forEach(t=>{if(t.dataset.t==='youtube'){t.click();}});
+  G('studio').scrollIntoView({behavior:'smooth',block:'start'});
+};
+
+window.scrollToRecord=()=>{
+  // Open studio if not already open — need a song loaded
+  if(G('stContent').style.display==='none'){
+    alert('Upload a song first, then use the Record tab inside the studio.');
+    return;
+  }
+  document.querySelectorAll('.tab').forEach(t=>{if(t.dataset.t==='record'){t.click();}});
+  G('studio').scrollIntoView({behavior:'smooth',block:'start'});
+};
+
+// URL loader — uses audio element to bypass CORS where possible
 G('btnLoadUrl').onclick=async()=>{
   const url=G('urlInp').value.trim();if(!url)return;
   pill('urlPill','ld','Loading…');
+
+  // First try direct fetch (works if server allows CORS)
   try{
     const res=await fetch(url,{mode:'cors'});
-    if(!res.ok)throw new Error('Could not fetch URL');
-    const ct=res.headers.get('content-type')||'';
-    if(!ct.startsWith('audio/')&&!url.match(/\.(mp3|wav|ogg|flac|m4a|aac|opus|aiff)(\?|$)/i))throw new Error('URL does not appear to be an audio file');
-    const ab=await res.arrayBuffer();
-    const fname=url.split('/').pop().split('?')[0]||'from-url.mp3';
-    const file=new File([ab],fname,{type:ct||'audio/mpeg'});
-    songs.push({file,name:fname,buf:null});renderSongs();
-    G('urlLoadBox').style.display='none';G('urlInp').value='';
-    if(songs.length===1&&curIdx<0)selectSong(0);else selectSong(songs.length-1);
-    pill('urlPill','ok','Loaded!');
-  }catch(e){pill('urlPill','err',e.message.includes('fetch')||e.message.includes('CORS')?'CORS blocked — try downloading the file directly':e.message);}
+    if(res.ok){
+      const ab=await res.arrayBuffer();
+      const ct=res.headers.get('content-type')||'audio/mpeg';
+      const fname=decodeURIComponent(url.split('/').pop().split('?')[0])||'audio.mp3';
+      const file=new File([ab],fname,{type:ct});
+      songs.push({file,name:fname,buf:null});renderSongs();
+      G('urlLoadBox').style.display='none';G('urlInp').value='';
+      selectSong(songs.length-1);
+      pill('urlPill','ok','Loaded!');
+      return;
+    }
+  }catch(e){}
+
+  // Fallback: use audio element + MediaRecorder to capture (works for some CDN audio)
+  try{
+    pill('urlPill','ld','Trying audio capture…');
+    const audio=new Audio();audio.crossOrigin='anonymous';audio.src=url;
+    await new Promise((res,rej)=>{audio.oncanplaythrough=res;audio.onerror=rej;setTimeout(rej,8000);});
+    ensureCtx();
+    const srcNode=audioCtx.createMediaElementSource(audio);
+    const dest=audioCtx.createMediaStreamDestination();
+    srcNode.connect(dest);srcNode.connect(audioCtx.destination);
+    const mr=new MediaRecorder(dest.stream,{mimeType:'audio/webm'});
+    const chunks=[];
+    mr.ondataavailable=e=>{if(e.data.size>0)chunks.push(e.data);};
+    mr.onstop=async()=>{
+      const blob=new Blob(chunks,{type:'audio/webm'});
+      const fname=decodeURIComponent(url.split('/').pop().split('?')[0])||'audio.webm';
+      const file=new File([blob],fname,{type:'audio/webm'});
+      songs.push({file,name:fname,buf:null});renderSongs();
+      G('urlLoadBox').style.display='none';G('urlInp').value='';
+      selectSong(songs.length-1);
+      pill('urlPill','ok','Loaded!');
+    };
+    mr.start();audio.play();
+    audio.onended=()=>mr.stop();
+    // Safety timeout
+    setTimeout(()=>{if(mr.state==='recording'){audio.pause();mr.stop();}},300000);
+    pill('urlPill','ld','Playing & capturing…');
+  }catch(e){
+    pill('urlPill','err','Cannot load — server blocks external access. Download the file and drag it in.');
+  }
 };
 G('urlInp').addEventListener('keydown',e=>{if(e.key==='Enter')G('btnLoadUrl').click();});
 
 // ═══ YOUTUBE SEARCH + EXTRACT ═════════════════════════════════════════════════
 let ytPickedUrl='',ytPickedTitle='';
 
-// YouTube search uses the Invidious public API (open-source YouTube frontend, no key needed)
-const INVIDIOUS_INSTANCES=['https://invidious.privacydev.net','https://vid.puffyan.us','https://invidious.io'];
+// Use multiple Invidious instances as fallback
+const INVIDIOUS=[
+  'https://invidious.privacydev.net',
+  'https://invidious.fdn.fr',
+  'https://inv.nadeko.net',
+  'https://invidious.nerdvpn.de',
+  'https://iv.melmac.space'
+];
 let invIdx=0;
 
 async function ytSearch(q){
-  for(let attempt=0;attempt<INVIDIOUS_INSTANCES.length;attempt++){
-    const base=INVIDIOUS_INSTANCES[(invIdx+attempt)%INVIDIOUS_INSTANCES.length];
+  for(let i=0;i<INVIDIOUS.length;i++){
+    const base=INVIDIOUS[(invIdx+i)%INVIDIOUS.length];
     try{
-      const res=await fetch(`${base}/api/v1/search?q=${encodeURIComponent(q)}&type=video&fields=videoId,title,author,lengthSeconds`,{signal:AbortSignal.timeout(6000)});
-      if(!res.ok)continue;
-      const data=await res.json();
-      invIdx=(invIdx+attempt)%INVIDIOUS_INSTANCES.length;
-      return Array.isArray(data)?data.slice(0,6):[];
+      const r=await fetch(
+        `${base}/api/v1/search?q=${encodeURIComponent(q)}&type=video&fields=videoId,title,author,lengthSeconds`,
+        {signal:AbortSignal.timeout(5000)}
+      );
+      if(!r.ok)continue;
+      const data=await r.json();
+      invIdx=(invIdx+i)%INVIDIOUS.length;
+      return Array.isArray(data)?data.filter(v=>v.videoId).slice(0,7):[];
     }catch(e){continue;}
   }
-  return null;// all failed
+  return null;
 }
 
 G('btnYtSearch').onclick=async()=>{
   const q=G('ytSearchInp').value.trim();if(!q)return;
-  const res=G('ytResults');res.innerHTML='<div style="font-size:11px;color:var(--txt2);padding:6px 0">Searching…</div>';
+  const res=G('ytResults');
+  res.innerHTML='<div style="font-size:11px;color:var(--txt2);padding:8px 0;display:flex;align-items:center;gap:6px"><span style="animation:spin 1s linear infinite;display:inline-block">⟳</span> Searching YouTube…</div>';
   const results=await ytSearch(q);
   res.innerHTML='';
   if(!results){
-    res.innerHTML=`<div class="yt-extract-note">Search unavailable right now (Invidious API may be down). <br>Try: <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(q)}" target="_blank">Search on YouTube</a>, copy the video URL, then paste it in the "Already have a URL" section below.</div>`;
+    // Search failed — show direct YouTube search link as fallback
+    res.innerHTML=`<div class="yt-extract-note">
+      Search couldn't connect right now. Try these instead:<br><br>
+      <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(q)}" target="_blank" style="font-weight:600">🔍 Search "${q}" on YouTube →</a><br>
+      Copy the video URL from YouTube, then paste it in the <b>Paste URL</b> section below.
+    </div>`;
     return;
   }
-  if(results.length===0){res.innerHTML='<div style="font-size:11px;color:var(--txt2)">No results found.</div>';return;}
+  if(results.length===0){res.innerHTML='<div style="font-size:11px;color:var(--txt2)">No results. Try different search terms.</div>';return;}
   results.forEach(v=>{
     const dur=v.lengthSeconds?`${Math.floor(v.lengthSeconds/60)}:${String(v.lengthSeconds%60).padStart(2,'0')}`:'';
     const row=CE('div');row.className='yt-result-row';
-    row.innerHTML=`<img class="yt-thumb" src="https://img.youtube.com/vi/${v.videoId}/mqdefault.jpg" onerror="this.style.opacity='.3'"><div class="yt-result-title">${esc(v.title||'')}<div class="yt-result-ch">${esc(v.author||'')} ${dur?'· '+dur:''}</div></div><span class="yt-result-pick">Select →</span>`;
+    row.innerHTML=`<img class="yt-thumb" src="https://img.youtube.com/vi/${v.videoId}/mqdefault.jpg" onerror="this.style.opacity='.2'">
+      <div class="yt-result-title">${esc(v.title||'')}
+        <div class="yt-result-ch">${esc(v.author||'')}${dur?' · '+dur:''}</div>
+      </div>
+      <span class="yt-result-pick">Select →</span>`;
     row.onclick=()=>pickYtVideo(v.videoId,v.title||'YouTube audio',row);
     res.appendChild(row);
   });
@@ -1204,30 +1279,42 @@ function pickYtVideo(id,title,row){
 
 function showYtExtract(id,title,url){
   G('ytExtractSec').style.display='block';G('ytDragSec').style.display='block';
-  G('ytSelectedCard').innerHTML=`<img src="https://img.youtube.com/vi/${id}/mqdefault.jpg" style="width:60px;height:42px;border-radius:4px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'"><div><div style="font-size:12px;font-weight:600">${esc(title)}</div><div style="font-size:10px;color:var(--txt2);margin-top:2px">${url}</div></div>`;
+  G('ytSelectedCard').innerHTML=`
+    <img src="https://img.youtube.com/vi/${id}/mqdefault.jpg" style="width:60px;height:42px;border-radius:4px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">
+    <div><div style="font-size:12px;font-weight:600;margin-bottom:2px">${esc(title)}</div>
+    <div style="font-size:10px;color:var(--txt2)">${url}</div></div>`;
+  // Your preferred extractors
   G('btnCobalt').href=`https://cobalt.tools/?u=${encodeURIComponent(url)}`;
-  G('btnYt1s').href=`https://yt1s.io/en40/youtube-to-mp3?q=${encodeURIComponent(url)}`;
-  G('btnY2meta').href=`https://y2meta.app/youtube-to-mp3?q=${encodeURIComponent(url)}`;
+  G('btnYt1s').href=`https://yt2mp3.sc/?url=${encodeURIComponent(url)}`;
+  G('btnY2meta').href=`https://en1.y2mate.is/n2u/youtube-to-mp3.html?url=${encodeURIComponent(url)}`;
   G('ytExtractSec').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
-// Manual URL input in YouTube tab
-window.toggleYtManual=()=>{const b=G('ytManualBox');b.style.display=b.style.display==='none'?'block':'none';};
+// Manual URL paste in YouTube tab
+window.toggleYtManual=()=>{
+  const b=G('ytManualBox');
+  b.style.display=b.style.display==='none'||b.style.display===''?'block':'none';
+};
 G('btnYtUrl').onclick=()=>{
   const url=G('ytUrlInp').value.trim();if(!url)return;
   const m=url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([a-zA-Z0-9_-]{11})/);
   if(m){pickYtVideo(m[1],'YouTube video',null);G('ytUrlResult').innerHTML='';}
-  else{G('ytUrlResult').innerHTML='<div style="font-size:11px;color:var(--red);margin-top:4px">Not a valid YouTube URL. Try: youtube.com/watch?v=XXXXXXXXXXX</div>';}
+  else{G('ytUrlResult').innerHTML='<div style="font-size:11px;color:var(--red);margin-top:4px">Not a recognised YouTube URL. Should look like: youtube.com/watch?v=XXXXXXXXXXX</div>';}
 };
 G('ytUrlInp').addEventListener('keydown',e=>{if(e.key==='Enter')G('btnYtUrl').click();});
 
-// YouTube drag target — same as main drop zone
+// YouTube drag-and-drop target (step 3)
 const ytDT=G('ytDragTarget');
 if(ytDT){
   ytDT.onclick=()=>G('fi').click();
   ytDT.addEventListener('dragover',e=>{e.preventDefault();ytDT.classList.add('over')});
   ytDT.addEventListener('dragleave',()=>ytDT.classList.remove('over'));
-  ytDT.addEventListener('drop',e=>{e.preventDefault();ytDT.classList.remove('over');loadFiles([...e.dataTransfer.files]);G('studio').scrollIntoView({behavior:'smooth'});});
+  ytDT.addEventListener('drop',e=>{
+    e.preventDefault();ytDT.classList.remove('over');
+    loadFiles([...e.dataTransfer.files]);
+    // Scroll up to show the loaded track
+    G('dz').scrollIntoView({behavior:'smooth',block:'start'});
+  });
 }
 // ═══ DOWNLOAD ═════════════════════════════════════════════════════════════════
 G('btnDl').onclick=async()=>{
