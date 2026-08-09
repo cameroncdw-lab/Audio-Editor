@@ -457,16 +457,40 @@ audio{width:100%;height:22px;filter:invert(1) hue-rotate(180deg) brightness(.65)
       </div>
     </div>
     <div class="panel" id="tab-youtube">
-      <div style="background:var(--c2);border:1px solid var(--b2);border-radius:var(--r2);padding:20px;display:flex;flex-direction:column;gap:12px">
-        <div style="font-size:12px;color:var(--txt2)">Download your YouTube audio from either site below then drag the MP3 into the drop zone at the top.</div>
-        <a href="https://yt2mp3.sc/" target="_blank" style="display:block;background:var(--c3);border:1px solid var(--b3);border-radius:var(--r);padding:14px 16px;color:var(--grn);font-size:14px;font-weight:700;text-decoration:none">YTMP3 - yt2mp3.sc - click to open</a>
-        <a href="https://en1.y2mate.is/n2u/youtube-to-mp3.html" target="_blank" style="display:block;background:var(--c3);border:1px solid var(--b3);border-radius:var(--r);padding:14px 16px;color:var(--grn);font-size:14px;font-weight:700;text-decoration:none">Y2Mate - click to open</a>
+
+      <div style="background:var(--c2);border:1px solid var(--b2);border-radius:var(--r2);padding:16px;margin-bottom:10px">
+        <div style="font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">🎵 YouTube — Audio only (MP3)</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <a href="https://yt2mp3.sc/" target="_blank" style="display:block;background:var(--c3);border:1px solid var(--b3);border-radius:var(--r);padding:13px 16px;color:var(--grn);font-size:14px;font-weight:700;text-decoration:none">YTMP3 — yt2mp3.sc ↗</a>
+          <a href="https://en1.y2mate.is/n2u/youtube-to-mp3.html" target="_blank" style="display:block;background:var(--c3);border:1px solid var(--b3);border-radius:var(--r);padding:13px 16px;color:var(--grn);font-size:14px;font-weight:700;text-decoration:none">Y2Mate ↗</a>
+        </div>
       </div>
-      <div class="yt-drag-target" id="ytDragTarget" style="margin-top:12px">
+
+      <div style="background:var(--c2);border:1px solid var(--b2);border-radius:var(--r2);padding:16px;margin-bottom:10px">
+        <div style="font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">🎬 YouTube — Full video download (MP4)</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <a href="https://cobalt.tools/" target="_blank" style="display:block;background:var(--c3);border:1px solid var(--b3);border-radius:var(--r);padding:13px 16px;color:var(--blu);font-size:14px;font-weight:700;text-decoration:none">Cobalt.tools — paste URL, pick MP4 ↗</a>
+          <a href="https://yt1s.com/" target="_blank" style="display:block;background:var(--c3);border:1px solid var(--b3);border-radius:var(--r);padding:13px 16px;color:var(--blu);font-size:14px;font-weight:700;text-decoration:none">yt1s.com — paste URL, pick MP4 quality ↗</a>
+        </div>
+        <div style="font-size:10px;color:var(--txt3);margin-top:8px">After downloading the MP4, drag it into the drop zone below — Studio Pro can load video files and extract the audio automatically.</div>
+      </div>
+
+      <div style="background:var(--c2);border:1px solid var(--b2);border-radius:var(--r2);padding:16px;margin-bottom:10px">
+        <div style="font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">📱 Instagram / TikTok / Facebook</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <a href="https://snapinsta.app/" target="_blank" style="display:block;background:var(--c3);border:1px solid var(--b3);border-radius:var(--r);padding:13px 16px;color:var(--pur);font-size:14px;font-weight:700;text-decoration:none">Snapinsta — Instagram reels & posts ↗</a>
+          <a href="https://ssstik.io/" target="_blank" style="display:block;background:var(--c3);border:1px solid var(--b3);border-radius:var(--r);padding:13px 16px;color:var(--pur);font-size:14px;font-weight:700;text-decoration:none">ssstik.io — TikTok videos ↗</a>
+          <a href="https://cobalt.tools/" target="_blank" style="display:block;background:var(--c3);border:1px solid var(--b3);border-radius:var(--r);padding:13px 16px;color:var(--pur);font-size:14px;font-weight:700;text-decoration:none">Cobalt.tools — works on Instagram, TikTok, Twitter/X ↗</a>
+        </div>
+        <div style="font-size:10px;color:var(--txt3);margin-top:8px">Paste the reel or post URL. Download the video, then drag it in below to load the audio into Studio Pro.</div>
+      </div>
+
+      <div class="yt-drag-target" id="ytDragTarget">
         <div style="font-size:24px;margin-bottom:6px">&#8595;</div>
-        <div style="font-size:13px;font-weight:600;margin-bottom:3px">Drop downloaded MP3 here</div>
-        <div style="font-size:11px;color:var(--txt2)">Or click to browse for the file</div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:3px">Drop downloaded file here</div>
+        <div style="font-size:11px;color:var(--txt2)">MP3, MP4, or any video/audio file — click to browse</div>
       </div>
+
     </div>
     <div class="dlbar">
       <span style="font-size:12px;font-weight:700">Export As</span>
