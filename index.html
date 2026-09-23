@@ -222,9 +222,9 @@ audio{width:100%;height:22px;filter:invert(1) hue-rotate(180deg) brightness(.65)
 </div>
 <div class="drop" id="dz">
   <div class="drop-ico">&#127925;</div>
-  <div class="drop-ttl">Drop audio files here</div>
-  <div class="drop-sub">MP3 WAV OGG FLAC AAC M4A OPUS AIFF or use the options below</div>
-  <input type="file" id="fi" accept="audio/*,.flac,.aiff,.opus,.m4a,.aac" multiple>
+  <div class="drop-ttl">Drop audio or video files here</div>
+  <div class="drop-sub">MP3 WAV OGG FLAC AAC M4A OPUS AIFF MP4 WEBM or use the options below</div>
+  <input type="file" id="fi" accept="audio/*,video/mp4,video/webm,.flac,.aiff,.opus,.m4a,.aac,.mp4,.webm" multiple>
 </div>
 <div class="quickload">
   <div class="ql-option" id="qlFile"><div class="ql-ico">&#128193;</div><div class="ql-lbl">Browse files</div><div class="ql-sub">MP3, WAV, FLAC, M4A</div></div>
@@ -505,8 +505,11 @@ audio{width:100%;height:22px;filter:invert(1) hue-rotate(180deg) brightness(.65)
   </div>
 </div>
 </div>
+
+<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+<script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
+
 <script>
-// ── HELPERS ──────────────────────────────────────────────────────────────────
 function G(id){return document.getElementById(id);}
 function CE(t){return document.createElement(t);}
 function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -514,56 +517,60 @@ function fmtTime(s){s=Math.max(0,s||0);return Math.floor(s/60)+':'+String(Math.f
 function fmtBytes(b){return b<1048576?(b/1024).toFixed(1)+' KB':(b/1048576).toFixed(1)+' MB';}
 function pill(id,type,txt){const p=G(id);if(!p)return;p.className='pill v '+(type==='err'?'err':type==='ld'?'ld':'ok');p.textContent=txt;if(type==='ok')setTimeout(()=>p.classList.remove('v'),3500);}
 
-// ── DATA ──────────────────────────────────────────────────────────────────────
 const EQ_BANDS=[{f:60,l:'60Hz'},{f:120,l:'120Hz'},{f:250,l:'250Hz'},{f:500,l:'500Hz'},{f:1000,l:'1kHz'},{f:2500,l:'2.5k'},{f:8000,l:'8kHz'},{f:16000,l:'16kHz'}];
 const NOTES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 let activeNotes=new Set(['C','D','E','F','G','A','B']);
+
 const VOICE_FX=[
-  {id:'deep',icon:'🔈',name:'Deep Voice',desc:'Pitch down, warm bass',eq:[2,3,1,-1,-1,0,1,0],pitch:-8,bass:6,treble:-2},
-  {id:'chipmunk',icon:'🐿',name:'Chipmunk',desc:'High pitch, bright and tiny',eq:[0,0,0,1,3,5,4,2],pitch:10,treble:5},
-  {id:'radio',icon:'📻',name:'Radio Voice',desc:'Bandpass mid-range only',eq:[-12,-8,-2,7,8,2,-8,-14],pitch:0},
-  {id:'robot',icon:'🤖',name:'Robot',desc:'Metallic hollow resonance',eq:[4,-4,8,-4,10,-4,8,-4],pitch:0},
-  {id:'megaphone',icon:'📣',name:'Megaphone',desc:'Loud clipped tinny',eq:[-14,-10,4,10,8,4,-6,-14],pitch:0},
-  {id:'telephone',icon:'☎️',name:'Telephone',desc:'Narrow 300-3kHz band',eq:[-16,-12,4,10,6,-4,-14,-18],pitch:0},
-  {id:'whisper',icon:'🤫',name:'Whisper',desc:'Breathy airy hushed',eq:[-8,-6,-2,0,2,4,6,5],pitch:0,treble:5,bass:-8},
-  {id:'cavevoice',icon:'🗣️',name:'Cave Echo',desc:'Deep cave with long echo',eq:[0,0,0,0,0,0,0,0],pitch:0,forceEcho:true},
-];
-const CELEB_REAL=[
-  {id:'morgan',icon:'🎬',name:'Like Morgan Freeman',desc:'Deep warm gravelly narrator',pitch:-6,eq:[3,4,2,-1,-2,-1,0,-1],bass:6,treble:-2,detail:'Deep baritone. Bass +6dB, low-mid warmth, slight high rolloff.'},
-  {id:'trump',icon:'🇺🇸',name:'Like Trump',desc:'Nasal punchy mid-forward',pitch:1,eq:[-2,-1,4,6,5,2,-1,-2],bass:-1,treble:1,detail:'Nasal mid-range, punchy. Mid boost 500Hz-2kHz, slight bass cut.'},
-  {id:'obama',icon:'🎤',name:'Like Obama',desc:'Smooth clear measured warm',pitch:-2,eq:[1,2,1,0,1,2,1,0],bass:3,treble:2,detail:'Smooth, balanced, articulate. Subtle lift on both ends.'},
-  {id:'biden',icon:'🗽',name:'Like Biden',desc:'Warm raspy aged soft',pitch:-3,eq:[2,3,1,-1,0,1,-1,-2],bass:4,treble:-3,detail:'Warm, slightly raspy. Bass warmth, reduced highs.'},
-  {id:'narrator',icon:'🌟',name:'Movie Narrator',desc:'Big bass authoritative epic',pitch:-5,eq:[5,5,3,0,-1,0,1,0],bass:8,treble:-1,detail:'Classic narrator. Massive bass, commanding presence.'},
-];
-const CELEB_CARTOON=[
-  {id:'sponge',icon:'🧽',name:'Like SpongeBob',desc:'Nasally high bubbly excited',pitch:7,eq:[-3,-2,0,4,8,6,4,2],treble:5,bass:-4,detail:'High-pitched nasal energy. Pitch +7, upper-mid boost, bass cut.'},
-  {id:'plankton',icon:'🦠',name:'Like Plankton',desc:'Tiny squeaky evil shrill',pitch:11,eq:[-5,-4,-1,2,6,8,6,4],treble:7,bass:-6,detail:'Very high, thin, menacing. Pitch +11, max treble, zero bass.'},
-  {id:'patrick',icon:'⭐',name:'Like Patrick Star',desc:'Slow dim loveable deep',pitch:-4,eq:[5,4,2,1,-1,-2,-3,-4],bass:8,treble:-5,detail:'Heavy bass, pitch down, muffled highs.'},
-  {id:'squidward',icon:'🎷',name:'Like Squidward',desc:'Nasal grumpy reedy bitter',pitch:2,eq:[-4,-2,3,7,5,2,-1,-2],bass:-3,treble:2,detail:'Grumpy nasal quality. Mid-forward, reduced bass.'},
-  {id:'sandy',icon:'🤠',name:'Like Sandy',desc:'Bright Texan cheerful clear',pitch:4,eq:[0,0,1,1,3,4,5,4],treble:5,bass:0,detail:'Bright and clear. Pitch up, sparkling treble.'},
-  {id:'krabs',icon:'🦀',name:'Like Mr Krabs',desc:'Gravelly greedy thick raspy',pitch:-3,eq:[3,2,4,2,0,-1,-2,-3],bass:4,treble:-3,detail:'Low-mid emphasis, reduced highs, gravelly quality.'},
-  {id:'gumball',icon:'🫧',name:'Like Gumball',desc:'Confident teen sarcastic bright',pitch:5,eq:[-1,0,2,3,5,4,3,2],treble:4,bass:-1,detail:'Youthful, bright, forward upper-mids.'},
-];
-const ENV_FX=[
-  {id:'concert',icon:'🎭',name:'Concert Hall',desc:'Large reverberant hall',decay:3.5,wet:65},
-  {id:'cave',icon:'🏔️',name:'Cave',desc:'Dark long echoes',decay:5,wet:70},
-  {id:'bathroom',icon:'🚿',name:'Bathroom',desc:'Tight tiled room',decay:0.8,wet:55},
-  {id:'stadium',icon:'🏟️',name:'Stadium',desc:'Massive open space',decay:6,wet:75},
-  {id:'car',icon:'🚗',name:'Car Speaker',desc:'Bassy tight interior',decay:0.4,wet:30,bass:4},
-  {id:'underwater',icon:'🌊',name:'Underwater',desc:'Muffled and filtered',decay:2.5,wet:80,lpf:true},
-  {id:'vinyl',icon:'💿',name:'Vinyl Record',desc:'Warm analog with crackle',decay:0.5,wet:40,crackle:35},
-  {id:'cassette',icon:'📼',name:'Cassette Tape',desc:'Lo-fi tape warmth',decay:0.6,wet:35,crackle:20},
-  {id:'oldradio',icon:'📟',name:'Old Radio',desc:'1940s bandpass warmth',decay:0.3,wet:20,oldradio:true},
+{id:'deep',icon:'🔈',name:'Deep Voice',desc:'Pitch down, warm bass',eq:[2,3,1,-1,-1,0,1,0],pitch:-8,bass:6,treble:-2},
+{id:'chipmunk',icon:'🐿',name:'Chipmunk',desc:'High pitch, bright and tiny',eq:[0,0,0,1,3,5,4,2],pitch:10,treble:5},
+{id:'radio',icon:'📻',name:'Radio Voice',desc:'Bandpass mid-range only',eq:[-12,-8,-2,7,8,2,-8,-14],pitch:0},
+{id:'robot',icon:'🤖',name:'Robot',desc:'Metallic hollow resonance',eq:[4,-4,8,-4,10,-4,8,-4],pitch:0},
+{id:'megaphone',icon:'📣',name:'Megaphone',desc:'Loud clipped tinny',eq:[-14,-10,4,10,8,4,-6,-14],pitch:0},
+{id:'telephone',icon:'☎️',name:'Telephone',desc:'Narrow 300-3kHz band',eq:[-16,-12,4,10,6,-4,-14,-18],pitch:0},
+{id:'whisper',icon:'🤫',name:'Whisper',desc:'Breathy airy hushed',eq:[-8,-6,-2,0,2,4,6,5],pitch:0,treble:5,bass:-8},
+{id:'cavevoice',icon:'🗣️',name:'Cave Echo',desc:'Deep cave with long echo',eq:[0,0,0,0,0,0,0,0],pitch:0,forceEcho:true}
 ];
 
-// ── STATE ─────────────────────────────────────────────────────────────────────
+const CELEB_REAL=[
+{id:'morgan',icon:'🎬',name:'Like Morgan Freeman',desc:'Deep warm gravelly narrator',pitch:-6,eq:[3,4,2,-1,-2,-1,0,-1],bass:6,treble:-2,detail:'Deep baritone. Bass +6dB, low-mid warmth, slight high rolloff.'},
+{id:'trump',icon:'🇺🇸',name:'Like Trump',desc:'Nasal punchy mid-forward',pitch:1,eq:[-2,-1,4,6,5,2,-1,-2],bass:-1,treble:1,detail:'Nasal mid-range, punchy. Mid boost 500Hz-2kHz, slight bass cut.'},
+{id:'obama',icon:'🎤',name:'Like Obama',desc:'Smooth clear measured warm',pitch:-2,eq:[1,2,1,0,1,2,1,0],bass:3,treble:2,detail:'Smooth, balanced, articulate. Subtle lift on both ends.'},
+{id:'biden',icon:'🗽',name:'Like Biden',desc:'Warm raspy aged soft',pitch:-3,eq:[2,3,1,-1,0,1,-1,-2],bass:4,treble:-3,detail:'Warm, slightly raspy. Bass warmth, reduced highs.'},
+{id:'narrator',icon:'🌟',name:'Movie Narrator',desc:'Big bass authoritative epic',pitch:-5,eq:[5,5,3,0,-1,0,1,0],bass:8,treble:-1,detail:'Classic narrator. Massive bass, commanding presence.'}
+];
+
+const CELEB_CARTOON=[
+{id:'sponge',icon:'🧽',name:'Like SpongeBob',desc:'Nasally high bubbly excited',pitch:7,eq:[-3,-2,0,4,8,6,4,2],treble:5,bass:-4,detail:'High-pitched nasal energy. Pitch +7, upper-mid boost, bass cut.'},
+{id:'plankton',icon:'🦠',name:'Like Plankton',desc:'Tiny squeaky evil shrill',pitch:11,eq:[-5,-4,-1,2,6,8,6,4],treble:7,bass:-6,detail:'Very high, thin, menacing. Pitch +11, max treble, zero bass.'},
+{id:'patrick',icon:'⭐',name:'Like Patrick Star',desc:'Slow dim loveable deep',pitch:-4,eq:[5,4,2,1,-1,-2,-3,-4],bass:8,treble:-5,detail:'Heavy bass, pitch down, muffled highs.'},
+{id:'squidward',icon:'🎷',name:'Like Squidward',desc:'Nasal grumpy reedy bitter',pitch:2,eq:[-4,-2,3,7,5,2,-1,-2],bass:-3,treble:2,detail:'Grumpy nasal quality. Mid-forward, reduced bass.'},
+{id:'sandy',icon:'🤠',name:'Like Sandy',desc:'Bright Texan cheerful clear',pitch:4,eq:[0,0,1,1,3,4,5,4],treble:5,bass:0,detail:'Bright and clear. Pitch up, sparkling treble.'},
+{id:'krabs',icon:'🦀',name:'Like Mr Krabs',desc:'Gravelly greedy thick raspy',pitch:-3,eq:[3,2,4,2,0,-1,-2,-3],bass:4,treble:-3,detail:'Low-mid emphasis, reduced highs, gravelly quality.'},
+{id:'gumball',icon:'🫧',name:'Like Gumball',desc:'Confident teen sarcastic bright',pitch:5,eq:[-1,0,2,3,5,4,3,2],treble:4,bass:-1,detail:'Youthful, bright, forward upper-mids.'}
+];
+
+const ENV_FX=[
+{id:'concert',icon:'🎭',name:'Concert Hall',desc:'Large reverberant hall',decay:3.5,wet:65},
+{id:'cave',icon:'🏔️',name:'Cave',desc:'Dark long echoes',decay:5,wet:70},
+{id:'bathroom',icon:'🚿',name:'Bathroom',desc:'Tight tiled room',decay:0.8,wet:55},
+{id:'stadium',icon:'🏟️',name:'Stadium',desc:'Massive open space',decay:6,wet:75},
+{id:'car',icon:'🚗',name:'Car Speaker',desc:'Bassy tight interior',decay:0.4,wet:30,bass:4},
+{id:'underwater',icon:'🌊',name:'Underwater',desc:'Muffled and filtered',decay:2.5,wet:80,lpf:true},
+{id:'vinyl',icon:'💿',name:'Vinyl Record',desc:'Warm analog with crackle',decay:0.5,wet:40,crackle:35},
+{id:'cassette',icon:'📼',name:'Cassette Tape',desc:'Lo-fi tape warmth',decay:0.6,wet:35,crackle:20},
+{id:'oldradio',icon:'📟',name:'Old Radio',desc:'1940s bandpass warmth',decay:0.3,wet:20,oldradio:true}
+];
+
 const songs=[];
 let curIdx=-1,audioCtx=null;
+
 const stems={
-  full:{buf:null,editBuf:null,revBuf:null,url:null,_rev:false},
-  voc:{buf:null,editBuf:null,revBuf:null,url:null,_rev:false},
-  ins:{buf:null,editBuf:null,revBuf:null,url:null,_rev:false}
+full:{buf:null,editBuf:null,revBuf:null,url:null,_rev:false},
+voc:{buf:null,editBuf:null,revBuf:null,url:null,_rev:false},
+ins:{buf:null,editBuf:null,revBuf:null,url:null,_rev:false}
 };
+
 let activeStem='full';
 let mainSrc=null,mainPlaying=false,mainStartT=0,mainStartOff=0,mainRaf=null;
 let gGain,gBass,gTreble,gPres,gAir,eqNodes=[];
@@ -572,174 +579,388 @@ let curVoiceFx=null,curCeleb=null,curEnv=null;
 let rotRaf=null,rotAngle=0;
 let recorder=null,recChunks=[],recStream=null,recAnalyser=null,recAC=null,recRaf=null;
 let voiceLayerBuf=null;
-const stemPrev={full:{src:null,playing:false,raf:null},voc:{src:null,playing:false,raf:null},ins:{src:null,playing:false,raf:null}};
+
+const stemPrev={
+full:{src:null,playing:false,raf:null},
+voc:{src:null,playing:false,raf:null},
+ins:{src:null,playing:false,raf:null}
+};
+
 let srRec=null,srStream=null,srChunks=[],srBlob=null,srRaf=null,srAC=null,srAn=null;
 
-// ── BUILD LISTS ───────────────────────────────────────────────────────────────
 function buildList(id,items,cb){
-  const c=G(id);if(!c)return;c.innerHTML='';
-  items.forEach(item=>{
-    const r=CE('div');r.className='listrow';
-    r.innerHTML='<div class="lico">'+item.icon+'</div><div class="listrow-info"><div class="listrow-name">'+item.name+'</div><div class="listrow-desc">'+(item.desc||'')+'</div></div><span class="listrow-check">✓</span>';
-    r.onclick=()=>cb(item,r);c.appendChild(r);
-  });
+const c=G(id);if(!c)return;c.innerHTML='';
+items.forEach(item=>{
+const r=CE('div');
+r.className='listrow';
+r.innerHTML='<div class="lico">'+item.icon+'</div><div class="listrow-info"><div class="listrow-name">'+item.name+'</div><div class="listrow-desc">'+(item.desc||'')+'</div></div><span class="listrow-check">✓</span>';
+r.onclick=()=>cb(item,r);
+c.appendChild(r);
+});
 }
+
 buildList('voiceListInner',VOICE_FX,(fx,r)=>applyVoiceFx(fx,r));
 buildList('cRealList',CELEB_REAL,(fx,r)=>applyCeleb(fx,r));
 buildList('cCartList',CELEB_CARTOON,(fx,r)=>applyCeleb(fx,r));
 buildList('envListInner',ENV_FX,(fx,r)=>applyEnv(fx,r));
 
 function buildEq(){
-  const g=G('eqGrid');if(!g)return;g.innerHTML='';
-  EQ_BANDS.forEach((b,i)=>{
-    const d=CE('div');d.className='eq-band';
-    d.innerHTML='<div class="eq-glbl" id="eqG'+i+'">0</div><div class="eq-slwrap"><input type="range" class="vert" id="eqS'+i+'" min="-18" max="18" value="0" step=".5"></div><div class="eq-flbl">'+b.l+'</div>';
-    g.appendChild(d);
-    setTimeout(()=>{
-      const sl=G('eqS'+i),gl=G('eqG'+i);
-      if(sl&&gl)sl.addEventListener('input',()=>{const v=+sl.value;gl.textContent=(v>=0?'+':'')+v.toFixed(1);if(eqNodes[i])eqNodes[i].gain.value=v;});
-    },50);
-  });
+const g=G('eqGrid');if(!g)return;g.innerHTML='';
+EQ_BANDS.forEach((b,i)=>{
+const d=CE('div');
+d.className='eq-band';
+d.innerHTML='<div class="eq-glbl" id="eqG'+i+'">0</div><div class="eq-slwrap"><input type="range" class="vert" id="eqS'+i+'" min="-18" max="18" value="0" step=".5"></div><div class="eq-flbl">'+b.l+'</div>';
+g.appendChild(d);
+setTimeout(()=>{
+const sl=G('eqS'+i),gl=G('eqG'+i);
+if(sl&&gl)sl.addEventListener('input',()=>{
+const v=+sl.value;
+gl.textContent=(v>=0?'+':'')+v.toFixed(1);
+if(eqNodes[i])eqNodes[i].gain.value=v;
+});
+},50);
+});
 }
 buildEq();
 
 function buildNoteChips(){
-  const nc=G('noteChips');if(!nc)return;nc.innerHTML='';
-  NOTES.forEach(n=>{const c=CE('div');c.className='nchip'+(activeNotes.has(n)?' on':'');c.textContent=n;c.onclick=()=>{activeNotes.has(n)?activeNotes.delete(n):activeNotes.add(n);c.classList.toggle('on',activeNotes.has(n));};nc.appendChild(c);});
+const nc=G('noteChips');if(!nc)return;nc.innerHTML='';
+NOTES.forEach(n=>{
+const c=CE('div');
+c.className='nchip'+(activeNotes.has(n)?' on':'');
+c.textContent=n;
+c.onclick=()=>{
+activeNotes.has(n)?activeNotes.delete(n):activeNotes.add(n);
+c.classList.toggle('on',activeNotes.has(n));
+};
+nc.appendChild(c);
+});
 }
 buildNoteChips();
 
-// ── TABS ──────────────────────────────────────────────────────────────────────
 document.querySelectorAll('.tab').forEach(btn=>{
-  btn.addEventListener('click',()=>{
-    document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
-    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
-    btn.classList.add('on');
-    G('tab-'+btn.dataset.t).classList.add('on');
-  });
+btn.addEventListener('click',()=>{
+document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
+document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+btn.classList.add('on');
+G('tab-'+btn.dataset.t).classList.add('on');
+});
 });
 
-// ── FILE LOADING ──────────────────────────────────────────────────────────────
 const dz=G('dz'),fi=G('fi');
 G('qlFile').onclick=()=>fi.click();
 dz.onclick=()=>fi.click();
 dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');});
 dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
-dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');loadFiles([...e.dataTransfer.files]);});
-fi.addEventListener('change',()=>{loadFiles([...fi.files]);fi.value='';});
+dz.addEventListener('drop',e=>{
+e.preventDefault();
+dz.classList.remove('over');
+loadFiles([...e.dataTransfer.files]);
+});
+fi.addEventListener('change',()=>{
+loadFiles([...fi.files]);
+fi.value='';
+});
 
 function loadFiles(files){
-  const valid=files.filter(f=>f.type.startsWith('audio/')||/\.(flac|aiff?|opus|m4a|aac|ogg|wav|mp3|mp4|weba|webm)$/i.test(f.name));
-  valid.forEach(f=>{songs.push({file:f,name:f.name,buf:null});});
-  if(valid.length>0){renderSongs();if(curIdx<0)selectSong(songs.length-1);}
+const valid=files.filter(f=>
+f.type.startsWith('audio/')||
+f.type.startsWith('video/')||
+/\.(flac|aiff?|opus|m4a|aac|ogg|wav|mp3|mp4|weba|webm|m4v|mov)$/i.test(f.name)
+);
+valid.forEach(f=>{
+songs.push({file:f,name:f.name,buf:null});
+});
+if(valid.length>0){
+renderSongs();
+if(curIdx<0)selectSong(songs.length-1);
+}
 }
 
 function renderSongs(){
-  const sl=G('slist'),ll=G('slbl');if(!sl)return;
-  ll.style.display=songs.length?'':'none';
-  sl.innerHTML='';
-  songs.forEach((s,i)=>{
-    const r=CE('div');r.className='srow'+(i===curIdx?' active':'');
-    r.innerHTML='<div class="srow-ico">'+(i===curIdx?'🎚':'🎵')+'</div><div class="srow-name">'+esc(s.name)+'</div><div class="srow-sz">'+fmtBytes(s.file.size)+'</div><button class="srow-rm" id="rm'+i+'">✕</button>';
-    r.addEventListener('click',()=>selectSong(i));
-    sl.appendChild(r);
-    G('rm'+i).addEventListener('click',e=>{e.stopPropagation();rmSong(i);});
-  });
+const sl=G('slist'),ll=G('slbl');if(!sl)return;
+ll.style.display=songs.length?'':'none';
+sl.innerHTML='';
+songs.forEach((s,i)=>{
+const r=CE('div');
+r.className='srow'+(i===curIdx?' active':'');
+r.innerHTML='<div class="srow-ico">'+(i===curIdx?'🎚':'🎵')+'</div><div class="srow-name">'+esc(s.name)+'</div><div class="srow-sz">'+fmtBytes(s.file.size)+'</div><button class="srow-rm" id="rm'+i+'">✕</button>';
+r.addEventListener('click',()=>selectSong(i));
+sl.appendChild(r);
+G('rm'+i).addEventListener('click',e=>{
+e.stopPropagation();
+rmSong(i);
+});
+});
 }
 
 function rmSong(i){
-  if(i===curIdx){stopMain();curIdx=-1;G('stEmpty').style.display='';G('stContent').style.display='none';}
-  else if(i<curIdx)curIdx--;
-  songs.splice(i,1);renderSongs();
+if(i===curIdx){
+stopMain();
+curIdx=-1;
+G('stEmpty').style.display='';
+G('stContent').style.display='none';
+}else if(i<curIdx)curIdx--;
+songs.splice(i,1);
+renderSongs();
 }
 
-// ── SELECT SONG ───────────────────────────────────────────────────────────────
 async function selectSong(i){
-  stopMain();curIdx=i;renderSongs();
-  G('stEmpty').style.display='none';G('stContent').style.display='';
-  G('stName').textContent=songs[i].name;
-  pill('stPill','ld','Decoding...');
-  ['full','voc','ins'].forEach(k=>Object.assign(stems[k],{buf:null,editBuf:null,revBuf:null,url:null,_rev:false}));
-  ensureCtx();
-  if(!songs[i].buf){
-    try{songs[i].buf=await audioCtx.decodeAudioData(await songs[i].file.arrayBuffer());}
-    catch(e){pill('stPill','err','Cannot decode this file');return;}
-  }
-  stems.full.buf=songs[i].buf;stems.full.editBuf=songs[i].buf;
-  stems.full.url=URL.createObjectURL(songs[i].file);
-  G('stemsHdr').style.display='';
-  ['full','voc','ins'].forEach(k=>G('sc-'+k).classList.add('ready'));
-  G('sb-full').style.display='none';
-  G('sb-voc').style.display='';G('sb-voc').textContent='Processing...';
-  G('sb-ins').style.display='';G('sb-ins').textContent='Processing...';
-  drawWave(stems.full.buf,G('wv-full'),'#20d9a0');
-  activeStem='full';
-  setStemUI('full');
-  drawMainWave(stems.full.buf,'full');
-  updTime(0);setPlayhead(0);
-  pill('stPill','ok','Ready');
-  G('combineBar').classList.add('show');
-  splitStems(songs[i].buf);
+stopMain();
+curIdx=i;
+renderSongs();
+
+G('stEmpty').style.display='none';
+G('stContent').style.display='';
+G('stName').textContent=songs[i].name;
+
+pill('stPill','ld','Decoding...');
+
+['full','voc','ins'].forEach(k=>
+Object.assign(stems[k],{
+buf:null,
+editBuf:null,
+revBuf:null,
+url:null,
+_rev:false
+})
+);
+
+ensureCtx();
+
+if(!songs[i].buf){
+try{
+songs[i].buf=await audioCtx.decodeAudioData(
+await songs[i].file.arrayBuffer()
+);
+}catch(e){
+pill('stPill','err','Cannot decode this file');
+return;
+}
 }
 
-// ── STEM SPLIT ────────────────────────────────────────────────────────────────
+stems.full.buf=songs[i].buf;
+stems.full.editBuf=songs[i].buf;
+stems.full.url=URL.createObjectURL(songs[i].file);
+
+G('stemsHdr').style.display='';
+
+['full','voc','ins'].forEach(k=>
+G('sc-'+k).classList.add('ready')
+);
+
+G('sb-full').style.display='none';
+
+G('sb-voc').style.display='';
+G('sb-voc').textContent='Processing...';
+
+G('sb-ins').style.display='';
+G('sb-ins').textContent='Processing...';
+
+drawWave(stems.full.buf,G('wv-full'),'#20d9a0');
+
+activeStem='full';
+setStemUI('full');
+drawMainWave(stems.full.buf,'full');
+
+updTime(0);
+setPlayhead(0);
+
+pill('stPill','ok','Ready');
+
+G('combineBar').classList.add('show');
+
+splitStems(songs[i].buf);
+}
+
 async function splitStems(buf){
-  const sr=buf.sampleRate,len=buf.length,ch=buf.numberOfChannels;
-  const vMono=new Float32Array(len);
-  if(ch>=2){const L=buf.getChannelData(0),R=buf.getChannelData(1);for(let i=0;i<len;i++)vMono[i]=(L[i]+R[i])*0.5;}
-  else vMono.set(buf.getChannelData(0));
-  const vCtx=new OfflineAudioContext(1,len,sr);
-  const vm=vCtx.createBuffer(1,len,sr);vm.getChannelData(0).set(vMono);
-  const vSrc=vCtx.createBufferSource();vSrc.buffer=vm;
-  const vHP=vCtx.createBiquadFilter();vHP.type='highpass';vHP.frequency.value=150;vHP.Q.value=0.7;
-  const vLP=vCtx.createBiquadFilter();vLP.type='lowpass';vLP.frequency.value=6000;vLP.Q.value=0.7;
-  const vBst=vCtx.createBiquadFilter();vBst.type='peaking';vBst.frequency.value=2000;vBst.gain.value=5;vBst.Q.value=1.5;
-  vSrc.connect(vHP);vHP.connect(vLP);vLP.connect(vBst);vBst.connect(vCtx.destination);vSrc.start(0);
-  const vR=await vCtx.startRendering();
-  const vSt=audioCtx.createBuffer(2,len,sr);
-  const vD=vR.getChannelData(0);vSt.getChannelData(0).set(vD);vSt.getChannelData(1).set(vD);
-  stems.voc.buf=vSt;stems.voc.editBuf=vSt;stems.voc.url=wav2url(vSt);
-  drawWave(vSt,G('wv-voc'),'#9d7bf5');G('sb-voc').style.display='none';
+const sr=buf.sampleRate;
+const len=buf.length;
+const ch=buf.numberOfChannels;
 
-  const iCtx=new OfflineAudioContext(ch,len,sr);
-  const iSrc=iCtx.createBufferSource();iSrc.buffer=buf;
-  const iC1=iCtx.createBiquadFilter();iC1.type='peaking';iC1.frequency.value=1000;iC1.Q.value=1;iC1.gain.value=-12;
-  const iC2=iCtx.createBiquadFilter();iC2.type='peaking';iC2.frequency.value=2500;iC2.Q.value=1.2;iC2.gain.value=-10;
-  const iBs=iCtx.createBiquadFilter();iBs.type='lowshelf';iBs.frequency.value=200;iBs.gain.value=3;
-  iSrc.connect(iC1);iC1.connect(iC2);iC2.connect(iBs);iBs.connect(iCtx.destination);iSrc.start(0);
-  const iBuf=await iCtx.startRendering();
-  stems.ins.buf=iBuf;stems.ins.editBuf=iBuf;stems.ins.url=wav2url(iBuf);
-  drawWave(iBuf,G('wv-ins'),'#f87c3d');G('sb-ins').style.display='none';
+const vMono=new Float32Array(len);
+
+if(ch>=2){
+const L=buf.getChannelData(0);
+const R=buf.getChannelData(1);
+
+for(let i=0;i<len;i++){
+vMono[i]=(L[i]+R[i])*0.5;
+}
+}else{
+vMono.set(buf.getChannelData(0));
 }
 
-// ── STEM UI ───────────────────────────────────────────────────────────────────
+const vCtx=new OfflineAudioContext(1,len,sr);
+const vm=vCtx.createBuffer(1,len,sr);
+vm.getChannelData(0).set(vMono);
+
+const vSrc=vCtx.createBufferSource();
+vSrc.buffer=vm;
+
+const vHP=vCtx.createBiquadFilter();
+vHP.type='highpass';
+vHP.frequency.value=150;
+vHP.Q.value=.7;
+
+const vLP=vCtx.createBiquadFilter();
+vLP.type='lowpass';
+vLP.frequency.value=6000;
+vLP.Q.value=.7;
+
+const vBst=vCtx.createBiquadFilter();
+vBst.type='peaking';
+vBst.frequency.value=2000;
+vBst.gain.value=5;
+vBst.Q.value=1.5;
+
+vSrc.connect(vHP);
+vHP.connect(vLP);
+vLP.connect(vBst);
+vBst.connect(vCtx.destination);
+
+vSrc.start(0);
+
+const vR=await vCtx.startRendering();
+
+const vSt=audioCtx.createBuffer(2,len,sr);
+
+const vD=vR.getChannelData(0);
+
+vSt.getChannelData(0).set(vD);
+vSt.getChannelData(1).set(vD);
+
+stems.voc.buf=vSt;
+stems.voc.editBuf=vSt;
+stems.voc.url=wav2url(vSt);
+
+drawWave(vSt,G('wv-voc'),'#9d7bf5');
+
+G('sb-voc').style.display='none';
+
+const iCtx=new OfflineAudioContext(ch,len,sr);
+
+const iSrc=iCtx.createBufferSource();
+iSrc.buffer=buf;
+
+const iC1=iCtx.createBiquadFilter();
+iC1.type='peaking';
+iC1.frequency.value=1000;
+iC1.Q.value=1;
+iC1.gain.value=-12;
+
+const iC2=iCtx.createBiquadFilter();
+iC2.type='peaking';
+iC2.frequency.value=2500;
+iC2.Q.value=1.2;
+iC2.gain.value=-10;
+
+const iBs=iCtx.createBiquadFilter();
+iBs.type='lowshelf';
+iBs.frequency.value=200;
+iBs.gain.value=3;
+
+iSrc.connect(iC1);
+iC1.connect(iC2);
+iC2.connect(iBs);
+iBs.connect(iCtx.destination);
+
+iSrc.start(0);
+
+const iBuf=await iCtx.startRendering();
+
+stems.ins.buf=iBuf;
+stems.ins.editBuf=iBuf;
+stems.ins.url=wav2url(iBuf);
+
+drawWave(iBuf,G('wv-ins'),'#f87c3d');
+
+G('sb-ins').style.display='none';
+}
+
 function setStemUI(k){
-  document.querySelectorAll('.stem-card').forEach(c=>c.classList.remove('sel-full','sel-voc','sel-ins'));
-  G('sc-'+k).classList.add('sel-'+k);
-  const labels={full:'Full Track',voc:'Vocals Only',ins:'Instrumental'};
-  const colors={full:'var(--grn)',voc:'var(--pur)',ins:'var(--ora)'};
-  const bgs={full:'var(--grn2)',voc:'var(--pur2)',ins:'var(--ora2)'};
-  G('stemArrowRow').classList.add('show');
-  G('stemArrowLabel').textContent=labels[k];G('stemArrowLabel').style.color=colors[k];G('stemArrowLabel').style.background=bgs[k];
-  G('stemInd').textContent=labels[k];G('stemInd').style.color=colors[k];G('stemInd').style.background=bgs[k];
-  ['full','voc','ins'].forEach(sk=>{
-    const b=G('sb-'+sk);if(!b)return;
-    if(sk===k){b.textContent='Editing';b.className='stem-badge editing';b.style.display='';}
-    else b.style.display='none';
-  });
+document.querySelectorAll('.stem-card').forEach(c=>
+c.classList.remove('sel-full','sel-voc','sel-ins')
+);
+
+G('sc-'+k).classList.add('sel-'+k);
+
+const labels={
+full:'Full Track',
+voc:'Vocals Only',
+ins:'Instrumental'
+};
+
+const colors={
+full:'var(--grn)',
+voc:'var(--pur)',
+ins:'var(--ora)'
+};
+
+const bgs={
+full:'var(--grn2)',
+voc:'var(--pur2)',
+ins:'var(--ora2)'
+};
+
+G('stemArrowRow').classList.add('show');
+
+G('stemArrowLabel').textContent=labels[k];
+G('stemArrowLabel').style.color=colors[k];
+G('stemArrowLabel').style.background=bgs[k];
+
+G('stemInd').textContent=labels[k];
+G('stemInd').style.color=colors[k];
+G('stemInd').style.background=bgs[k];
+
+['full','voc','ins'].forEach(sk=>{
+const b=G('sb-'+sk);
+if(!b)return;
+
+if(sk===k){
+b.textContent='Editing';
+b.className='stem-badge editing';
+b.style.display='';
+}else{
+b.style.display='none';
+}
+});
 }
 
 function setActiveStem(k){
-  stopMain();mainStartOff=0;activeStem=k;setStemUI(k);
-  const buf=stems[k].editBuf||stems[k].buf;
-  if(buf){drawMainWave(buf,k);updTime(0);setPlayhead(0);}
-  G('studio').scrollIntoView({behavior:'smooth',block:'start'});
+stopMain();
+mainStartOff=0;
+activeStem=k;
+setStemUI(k);
+
+const buf=stems[k].editBuf||stems[k].buf;
+
+if(buf){
+drawMainWave(buf,k);
+updTime(0);
+setPlayhead(0);
+}
+
+G('studio').scrollIntoView({
+behavior:'smooth',
+block:'start'
+});
 }
 
 ['full','voc','ins'].forEach(k=>{
-  G('sc-'+k).addEventListener('click',e=>{if(!e.target.closest('.btn'))setActiveStem(k);});
-  G('sp-'+k).addEventListener('click',e=>{e.stopPropagation();playStemPrev(k);});
-  G('ss-'+k).addEventListener('click',e=>{e.stopPropagation();stopStemPrev(k);});
+G('sc-'+k).addEventListener('click',e=>{
+if(!e.target.closest('.btn'))setActiveStem(k);
+});
+
+G('sp-'+k).addEventListener('click',e=>{
+e.stopPropagation();
+playStemPrev(k);
+});
+
+G('ss-'+k).addEventListener('click',e=>{
+e.stopPropagation();
+stopStemPrev(k);
+});
 });
 
 G('dlFull').addEventListener('click',()=>dlStem('full'));
@@ -747,491 +968,3210 @@ G('dlVoc').addEventListener('click',()=>dlStem('voc'));
 G('dlIns').addEventListener('click',()=>dlStem('ins'));
 
 function dlStem(k){
-  const url=stems[k].url;if(!url)return;
-  const a=CE('a');a.href=url;a.download=(songs[curIdx]?.name.replace(/\.[^.]+$/,'')||'track')+'_'+k+'.wav';a.click();
+const url=stems[k].url;
+if(!url)return;
+
+const a=CE('a');
+a.href=url;
+a.download=(songs[curIdx]?.name.replace(/\.[^.]+$/,'')||'track')+'_'+k+'.wav';
+a.click();
 }
 
 function playStemPrev(k){
-  const buf=stems[k].editBuf||stems[k].buf;if(!buf)return;
-  stopStemPrev(k);ensureCtx();if(audioCtx.state==='suspended')audioCtx.resume();
-  const src=audioCtx.createBufferSource();src.buffer=buf;src.connect(audioCtx.destination);src.start(0);
-  stemPrev[k].src=src;stemPrev[k].playing=true;
-  const st=audioCtx.currentTime;const pf=G('pf-'+k);
-  function tick(){if(!stemPrev[k].playing)return;pf.style.width=Math.min((audioCtx.currentTime-st)/buf.duration*100,100)+'%';stemPrev[k].raf=requestAnimationFrame(tick);}tick();
-  src.onended=()=>{stemPrev[k].playing=false;pf.style.width='0%';};
-}
-function stopStemPrev(k){
-  if(stemPrev[k].src){try{stemPrev[k].src.stop();stemPrev[k].src.disconnect();}catch(e){}stemPrev[k].src=null;}
-  stemPrev[k].playing=false;if(stemPrev[k].raf)cancelAnimationFrame(stemPrev[k].raf);
-  G('pf-'+k).style.width='0%';
+const buf=stems[k].editBuf||stems[k].buf;
+if(!buf)return;
+
+stopStemPrev(k);
+ensureCtx();
+
+if(audioCtx.state==='suspended')audioCtx.resume();
+
+const src=audioCtx.createBufferSource();
+src.buffer=buf;
+src.connect(audioCtx.destination);
+src.start(0);
+
+stemPrev[k].src=src;
+stemPrev[k].playing=true;
+
+const st=audioCtx.currentTime;
+const pf=G('pf-'+k);
+
+function tick(){
+if(!stemPrev[k].playing)return;
+
+pf.style.width=
+Math.min(
+(audioCtx.currentTime-st)/buf.duration*100,
+100
+)+'%';
+
+stemPrev[k].raf=requestAnimationFrame(tick);
 }
 
-// ── COMBINE ───────────────────────────────────────────────────────────────────
+tick();
+
+src.onended=()=>{
+stemPrev[k].playing=false;
+pf.style.width='0%';
+};
+}
+
+function stopStemPrev(k){
+if(stemPrev[k].src){
+try{
+stemPrev[k].src.stop();
+stemPrev[k].src.disconnect();
+}catch(e){}
+stemPrev[k].src=null;
+}
+
+stemPrev[k].playing=false;
+
+if(stemPrev[k].raf)
+cancelAnimationFrame(stemPrev[k].raf);
+
+G('pf-'+k).style.width='0%';
+}
+
 G('btnCombine').addEventListener('click',async()=>{
-  const vb=stems.voc.editBuf||stems.voc.buf,ib=stems.ins.editBuf||stems.ins.buf;
-  if(!vb||!ib){pill('combinePill','err','Stems not ready yet');return;}
-  pill('combinePill','ld','Combining...');
-  const off=new OfflineAudioContext(vb.numberOfChannels,Math.max(vb.length,ib.length),vb.sampleRate);
-  const vs=off.createBufferSource(),is_=off.createBufferSource();vs.buffer=vb;is_.buffer=ib;
-  vs.connect(off.destination);is_.connect(off.destination);vs.start(0);is_.start(0);
-  const r=await off.startRendering();
-  const a=CE('a');a.href=wav2url(r);a.download=(songs[curIdx]?.name.replace(/\.[^.]+$/,'')||'track')+'_combined.wav';a.click();
-  pill('combinePill','ok','Done!');
+const vb=stems.voc.editBuf||stems.voc.buf;
+const ib=stems.ins.editBuf||stems.ins.buf;
+
+if(!vb||!ib){
+pill('combinePill','err','Stems not ready yet');
+return;
+}
+
+pill('combinePill','ld','Combining...');
+
+const off=new OfflineAudioContext(
+vb.numberOfChannels,
+Math.max(vb.length,ib.length),
+vb.sampleRate
+);
+
+const vs=off.createBufferSource();
+const is_=off.createBufferSource();
+
+vs.buffer=vb;
+is_.buffer=ib;
+
+vs.connect(off.destination);
+is_.connect(off.destination);
+
+vs.start(0);
+is_.start(0);
+
+const r=await off.startRendering();
+
+const a=CE('a');
+
+a.href=wav2url(r);
+
+a.download=
+(songs[curIdx]?.name.replace(/\.[^.]+$/,'')||'track')+
+'_combined.wav';
+
+a.click();
+
+pill('combinePill','ok','Done!');
 });
 
-// ── AUDIO CONTEXT ─────────────────────────────────────────────────────────────
-function ensureCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();}
+function ensureCtx(){
+if(!audioCtx)
+audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+}
 
 function buildGraph(){
-  ensureCtx();if(mainSrc){try{mainSrc.disconnect();}catch(e){}}
-  gGain=audioCtx.createGain();gGain.gain.value=1;
-  gBass=audioCtx.createBiquadFilter();gBass.type='lowshelf';gBass.frequency.value=120;gBass.gain.value=+G('bassSl').value;
-  gTreble=audioCtx.createBiquadFilter();gTreble.type='highshelf';gTreble.frequency.value=8000;gTreble.gain.value=+G('trebSl').value;
-  gPres=audioCtx.createBiquadFilter();gPres.type='peaking';gPres.frequency.value=3500;gPres.Q.value=1.5;gPres.gain.value=G('clrTog').checked?+G('presSl').value:0;
-  gAir=audioCtx.createBiquadFilter();gAir.type='highshelf';gAir.frequency.value=12000;gAir.gain.value=G('clrTog').checked?+G('airSl').value:0;
-  eqNodes=EQ_BANDS.map((b,i)=>{const f=audioCtx.createBiquadFilter();f.type=i===0?'lowshelf':i===7?'highshelf':'peaking';f.frequency.value=b.f;f.gain.value=+(G('eqS'+i)||{value:0}).value||0;f.Q.value=1.2;return f;});
-  for(let i=1;i<eqNodes.length;i++)eqNodes[i-1].connect(eqNodes[i]);
-  gPan=audioCtx.createStereoPanner();gPan.pan.value=0;
-  gGain.connect(gBass);gBass.connect(gTreble);gTreble.connect(gPres);gPres.connect(gAir);gAir.connect(eqNodes[0]);
-  const eqOut=eqNodes[7];
-  const dry=audioCtx.createGain();dry.gain.value=1;eqOut.connect(dry);dry.connect(gPan);
-  gRevWet=audioCtx.createGain();gRevWet.gain.value=0;
-  if(G('revTog').checked){
-    gRev=audioCtx.createConvolver();gRevWet.gain.value=+G('revWetSl').value/100;
-    genImp(+G('revSizeSl').value,2.5).then(b=>{if(gRev)gRev.buffer=b;});
-    eqOut.connect(gRev);gRev.connect(gRevWet);gRevWet.connect(gPan);
-  }
-  gEchoWet=audioCtx.createGain();gEchoWet.gain.value=0;
-  if(G('echTog').checked){
-    gEcho=audioCtx.createDelay(3);gEcho.delayTime.value=+G('echDelSl').value;
-    gEchoFB=audioCtx.createGain();gEchoFB.gain.value=+G('echFBSl').value;
-    gEchoWet.gain.value=0.45;
-    gEcho.connect(gEchoFB);gEchoFB.connect(gEcho);eqOut.connect(gEcho);gEcho.connect(gEchoWet);gEchoWet.connect(gPan);
-  }
-  gEnvWet=audioCtx.createGain();gEnvWet.gain.value=0;
-  if(curEnv){
-    gEnvConv=audioCtx.createConvolver();gEnvWet.gain.value=+G('envWetSl').value/100;
-    const ef=ENV_FX.find(e=>e.id===curEnv);
-    if(ef)genImp(ef.decay/8||0.3,ef.decay||2).then(b=>{if(gEnvConv)gEnvConv.buffer=b;});
-    eqOut.connect(gEnvConv);gEnvConv.connect(gEnvWet);gEnvWet.connect(gPan);
-  }
-  gPan.connect(audioCtx.destination);
-  if(gCrackle){try{gCrackle.stop();}catch(e){}gCrackle=null;}
-  if(G('crklTog').checked)buildCrackle();
+ensureCtx();
+
+if(mainSrc){
+try{mainSrc.disconnect();}catch(e){}
 }
 
-// ── PLAYBACK ──────────────────────────────────────────────────────────────────
-function getActiveBuf(){const s=stems[activeStem];return s.revBuf||(s.editBuf||s.buf);}
-function getFinalRate(){return Math.max(0.05,(1+(+G('speedSl').value/100))*Math.pow(2,+G('pitchSl').value/12)*(+G('tuneSl').value/440));}
+gGain=audioCtx.createGain();
+gGain.gain.value=1;
+
+gBass=audioCtx.createBiquadFilter();
+gBass.type='lowshelf';
+gBass.frequency.value=120;
+gBass.gain.value=+G('bassSl').value;
+
+gTreble=audioCtx.createBiquadFilter();
+gTreble.type='highshelf';
+gTreble.frequency.value=8000;
+gTreble.gain.value=+G('trebSl').value;
+
+gPres=audioCtx.createBiquadFilter();
+gPres.type='peaking';
+gPres.frequency.value=3500;
+gPres.Q.value=1.5;
+gPres.gain.value=
+G('clrTog').checked?
++G('presSl').value:
+0;
+
+gAir=audioCtx.createBiquadFilter();
+gAir.type='highshelf';
+gAir.frequency.value=12000;
+gAir.gain.value=
+G('clrTog').checked?
++G('airSl').value:
+0;
+
+eqNodes=EQ_BANDS.map((b,i)=>{
+const f=audioCtx.createBiquadFilter();
+
+f.type=
+i===0?'lowshelf':
+i===7?'highshelf':
+'peaking';
+
+f.frequency.value=b.f;
+
+f.gain.value=
++(G('eqS'+i)||{value:0}).value||0;
+
+f.Q.value=1.2;
+
+return f;
+});
+
+for(let i=1;i<eqNodes.length;i++)
+eqNodes[i-1].connect(eqNodes[i]);
+
+gPan=audioCtx.createStereoPanner();
+gPan.pan.value=0;
+
+gGain.connect(gBass);
+gBass.connect(gTreble);
+gTreble.connect(gPres);
+gPres.connect(gAir);
+gAir.connect(eqNodes[0]);
+
+const eqOut=eqNodes[7];
+
+const dry=audioCtx.createGain();
+dry.gain.value=1;
+
+eqOut.connect(dry);
+dry.connect(gPan);
+
+gRevWet=audioCtx.createGain();
+gRevWet.gain.value=0;
+
+if(G('revTog').checked){
+gRev=audioCtx.createConvolver();
+
+gRevWet.gain.value=
++G('revWetSl').value/100;
+
+genImp(
++G('revSizeSl').value,
+2.5
+).then(b=>{
+if(gRev)gRev.buffer=b;
+});
+
+eqOut.connect(gRev);
+gRev.connect(gRevWet);
+gRevWet.connect(gPan);
+}
+
+gEchoWet=audioCtx.createGain();
+gEchoWet.gain.value=0;
+
+if(G('echTog').checked){
+gEcho=audioCtx.createDelay(3);
+
+gEcho.delayTime.value=
++G('echDelSl').value;
+
+gEchoFB=audioCtx.createGain();
+
+gEchoFB.gain.value=
++G('echFBSl').value;
+
+gEchoWet.gain.value=.45;
+
+gEcho.connect(gEchoFB);
+gEchoFB.connect(gEcho);
+
+eqOut.connect(gEcho);
+gEcho.connect(gEchoWet);
+gEchoWet.connect(gPan);
+}
+
+gEnvWet=audioCtx.createGain();
+gEnvWet.gain.value=0;
+
+if(curEnv){
+gEnvConv=audioCtx.createConvolver();
+
+gEnvWet.gain.value=
++G('envWetSl').value/100;
+
+const ef=ENV_FX.find(e=>e.id===curEnv);
+
+if(ef){
+genImp(
+ef.decay/8||.3,
+ef.decay||2
+).then(b=>{
+if(gEnvConv)gEnvConv.buffer=b;
+});
+}
+
+eqOut.connect(gEnvConv);
+gEnvConv.connect(gEnvWet);
+gEnvWet.connect(gPan);
+}
+
+gPan.connect(audioCtx.destination);
+
+if(gCrackle){
+try{gCrackle.stop();}catch(e){}
+gCrackle=null;
+}
+
+if(G('crklTog').checked)
+buildCrackle();
+}
+
+function getActiveBuf(){
+const s=stems[activeStem];
+return s.revBuf||(s.editBuf||s.buf);
+}
+
+function getFinalRate(){
+return Math.max(
+.05,
+(1+(+G('speedSl').value/100))*
+Math.pow(2,+G('pitchSl').value/12)*
+(+G('tuneSl').value/440)
+);
+}
 
 function playMain(off=0){
-  const buf=getActiveBuf();if(!buf)return;
-  ensureCtx();if(audioCtx.state==='suspended')audioCtx.resume();
-  if(mainSrc){try{mainSrc.disconnect();}catch(e){}}
-  mainSrc=audioCtx.createBufferSource();mainSrc.buffer=buf;mainSrc.playbackRate.value=getFinalRate();
-  mainSrc.connect(gGain);mainSrc.start(0,off);
-  mainStartT=audioCtx.currentTime;mainStartOff=off;mainPlaying=true;
-  G('btnPlay').textContent='Pause';
-  mainSrc.onended=()=>{if(mainPlaying){mainPlaying=false;G('btnPlay').textContent='Play';mainStartOff=0;setPlayhead(0);}};
-  if(G('rotTog').checked)startRot();
-  tickMain();
+const buf=getActiveBuf();
+if(!buf)return;
+
+ensureCtx();
+
+if(audioCtx.state==='suspended')
+audioCtx.resume();
+
+if(mainSrc){
+try{mainSrc.disconnect();}catch(e){}
 }
+
+mainSrc=audioCtx.createBufferSource();
+
+mainSrc.buffer=buf;
+mainSrc.playbackRate.value=getFinalRate();
+
+mainSrc.connect(gGain);
+
+mainSrc.start(0,off);
+
+mainStartT=audioCtx.currentTime;
+mainStartOff=off;
+mainPlaying=true;
+
+G('btnPlay').textContent='Pause';
+
+mainSrc.onended=()=>{
+if(mainPlaying){
+mainPlaying=false;
+G('btnPlay').textContent='Play';
+mainStartOff=0;
+setPlayhead(0);
+}
+};
+
+if(G('rotTog').checked)
+startRot();
+
+tickMain();
+}
+
 function stopMain(){
-  if(mainSrc){try{mainSrc.stop();mainSrc.disconnect();}catch(e){}mainSrc=null;}
-  mainPlaying=false;G('btnPlay').textContent='Play';
-  if(mainRaf)cancelAnimationFrame(mainRaf);stopRot();
+if(mainSrc){
+try{
+mainSrc.stop();
+mainSrc.disconnect();
+}catch(e){}
+
+mainSrc=null;
 }
+
+mainPlaying=false;
+G('btnPlay').textContent='Play';
+
+if(mainRaf)
+cancelAnimationFrame(mainRaf);
+
+stopRot();
+}
+
 function setPlayhead(pct){
-  const c=G('mainWave');if(!c)return;
-  const W=c.offsetWidth||700;
-  G('wavePlayhead').style.left=Math.max(0,Math.min(W,pct*W))+'px';
-  G('waveProgress').style.width=(pct*100)+'%';
-  const buf=getActiveBuf();if(buf)G('waveTimeCur').textContent=fmtTime(pct*buf.duration);
+const c=G('mainWave');
+if(!c)return;
+
+const W=c.offsetWidth||700;
+
+G('wavePlayhead').style.left=
+Math.max(
+0,
+Math.min(W,pct*W)
+)+'px';
+
+G('waveProgress').style.width=
+(pct*100)+'%';
+
+const buf=getActiveBuf();
+
+if(buf)
+G('waveTimeCur').textContent=
+fmtTime(pct*buf.duration);
 }
+
 function tickMain(){
-  if(!mainPlaying)return;
-  const buf=getActiveBuf();if(!buf)return;
-  const el=(audioCtx.currentTime-mainStartT)*getFinalRate()+mainStartOff;
-  setPlayhead(Math.min(el/buf.duration,1));updTime(el);
-  mainRaf=requestAnimationFrame(tickMain);
+if(!mainPlaying)return;
+
+const buf=getActiveBuf();
+if(!buf)return;
+
+const el=
+(audioCtx.currentTime-mainStartT)*
+getFinalRate()+
+mainStartOff;
+
+setPlayhead(
+Math.min(el/buf.duration,1)
+);
+
+updTime(el);
+
+mainRaf=
+requestAnimationFrame(tickMain);
 }
+
 function updTime(t){
-  const buf=getActiveBuf();
-  G('tdisp').textContent=fmtTime(t)+' / '+fmtTime(buf?buf.duration:0);
-  const td=G('waveTimeDur');if(td&&buf)td.textContent=fmtTime(buf.duration);
+const buf=getActiveBuf();
+
+G('tdisp').textContent=
+fmtTime(t)+
+' / '+
+fmtTime(buf?buf.duration:0);
+
+const td=G('waveTimeDur');
+
+if(td&&buf)
+td.textContent=fmtTime(buf.duration);
 }
 
 G('btnPlay').addEventListener('click',()=>{
-  if(!getActiveBuf())return;
-  if(mainPlaying){const el=(audioCtx.currentTime-mainStartT)*getFinalRate()+mainStartOff;stopMain();mainStartOff=el;}
-  else{buildGraph();playMain(mainStartOff);}
+if(!getActiveBuf())return;
+
+if(mainPlaying){
+const el=
+(audioCtx.currentTime-mainStartT)*
+getFinalRate()+
+mainStartOff;
+
+stopMain();
+mainStartOff=el;
+}else{
+buildGraph();
+playMain(mainStartOff);
+}
 });
-G('btnStop').addEventListener('click',()=>{stopMain();mainStartOff=0;setPlayhead(0);updTime(0);});
-G('btnRestart').addEventListener('click',()=>{stopMain();mainStartOff=0;buildGraph();playMain(0);});
+
+G('btnStop').addEventListener('click',()=>{
+stopMain();
+mainStartOff=0;
+setPlayhead(0);
+updTime(0);
+});
+
+G('btnRestart').addEventListener('click',()=>{
+stopMain();
+mainStartOff=0;
+buildGraph();
+playMain(0);
+});
+
 G('btnRev').addEventListener('click',()=>{
-  const s=stems[activeStem];const base=s.editBuf||s.buf;if(!base)return;
-  if(!s.revBuf){ensureCtx();const r=audioCtx.createBuffer(base.numberOfChannels,base.length,base.sampleRate);for(let c=0;c<base.numberOfChannels;c++){const d=base.getChannelData(c).slice().reverse();r.getChannelData(c).set(d);}s.revBuf=r;}
-  s._rev=!s._rev;if(!s._rev)s.revBuf=null;
-  const was=mainPlaying;stopMain();mainStartOff=0;
-  drawMainWave(getActiveBuf()||base,activeStem);
-  G('btnRev').className=s._rev?'btn g':'btn r';G('btnRev').textContent=s._rev?'Normal':'Reverse';
-  if(was){buildGraph();playMain(0);}
+const s=stems[activeStem];
+const base=s.editBuf||s.buf;
+
+if(!base)return;
+
+if(!s.revBuf){
+ensureCtx();
+
+const r=audioCtx.createBuffer(
+base.numberOfChannels,
+base.length,
+base.sampleRate
+);
+
+for(let c=0;c<base.numberOfChannels;c++){
+const d=
+base.getChannelData(c)
+.slice()
+.reverse();
+
+r.getChannelData(c).set(d);
+}
+
+s.revBuf=r;
+}
+
+s._rev=!s._rev;
+
+if(!s._rev)
+s.revBuf=null;
+
+const was=mainPlaying;
+
+stopMain();
+mainStartOff=0;
+
+drawMainWave(
+getActiveBuf()||base,
+activeStem
+);
+
+G('btnRev').className=
+s._rev?'btn g':'btn r';
+
+G('btnRev').textContent=
+s._rev?'Normal':'Reverse';
+
+if(was){
+buildGraph();
+playMain(0);
+}
 });
+
 G('btnRevert').addEventListener('click',()=>{
-  stopMain();const s=stems[activeStem];s.editBuf=s.buf;s.revBuf=null;s._rev=false;
-  G('btnRev').textContent='Reverse';G('btnRev').className='btn r';
-  ['pitchSl','bassSl','trebSl','speedSl'].forEach(id=>{const el=G(id);if(el)el.value=0;});
-  G('tuneSl').value=440;
-  G('pitchDisp').textContent='0';G('speedDisp').textContent='0';G('tuneDisp').textContent='440';
-  G('bassV').textContent='0 dB';G('trebV').textContent='0 dB';
-  ['revTog','echTog','clrTog','crklTog','rotTog','distTog','atTog'].forEach(id=>{const el=G(id);if(el)el.checked=false;});
-  EQ_BANDS.forEach((_,i)=>{const sl=G('eqS'+i);if(sl){sl.value=0;const gl=G('eqG'+i);if(gl)gl.textContent='0';}});
-  curVoiceFx=null;curCeleb=null;curEnv=null;
-  document.querySelectorAll('.listrow.on').forEach(r=>r.classList.remove('on'));
-  G('celebDetail').style.display='none';
-  if(eqNodes.length)eqNodes.forEach(n=>n.gain.value=0);
-  if(gBass)gBass.gain.value=0;if(gTreble)gTreble.gain.value=0;
-  setPlayhead(0);drawMainWave(s.editBuf||s.buf,activeStem);buildGraph();pill('stPill','ok','Reverted');
+stopMain();
+
+const s=stems[activeStem];
+
+s.editBuf=s.buf;
+s.revBuf=null;
+s._rev=false;
+
+G('btnRev').textContent='Reverse';
+G('btnRev').className='btn r';
+
+['pitchSl','bassSl','trebSl','speedSl']
+.forEach(id=>{
+const el=G(id);
+if(el)el.value=0;
+});
+
+G('tuneSl').value=440;
+
+G('pitchDisp').textContent='0';
+G('speedDisp').textContent='0';
+G('tuneDisp').textContent='440';
+
+G('bassV').textContent='0 dB';
+G('trebV').textContent='0 dB';
+
+[
+'revTog',
+'echTog',
+'clrTog',
+'crklTog',
+'rotTog',
+'distTog',
+'atTog'
+].forEach(id=>{
+const el=G(id);
+if(el)el.checked=false;
+});
+
+EQ_BANDS.forEach((_,i)=>{
+const sl=G('eqS'+i);
+
+if(sl){
+sl.value=0;
+
+const gl=G('eqG'+i);
+
+if(gl)gl.textContent='0';
+}
+});
+
+curVoiceFx=null;
+curCeleb=null;
+curEnv=null;
+
+document.querySelectorAll('.listrow.on')
+.forEach(r=>r.classList.remove('on'));
+
+G('celebDetail').style.display='none';
+
+if(eqNodes.length)
+eqNodes.forEach(n=>n.gain.value=0);
+
+if(gBass)gBass.gain.value=0;
+if(gTreble)gTreble.gain.value=0;
+
+setPlayhead(0);
+
+drawMainWave(
+s.editBuf||s.buf,
+activeStem
+);
+
+buildGraph();
+
+pill('stPill','ok','Reverted');
 });
 
 let waveDrag=false;
+
 function seekEvt(e){
-  const buf=getActiveBuf();if(!buf)return;
-  const c=G('mainWave'),r=c.getBoundingClientRect();
-  const cx=e.touches?e.touches[0].clientX:e.clientX;
-  const pct=Math.max(0,Math.min(1,(cx-r.left)/r.width));
-  const was=mainPlaying;stopMain();mainStartOff=pct*buf.duration;setPlayhead(pct);updTime(mainStartOff);
-  if(was){buildGraph();playMain(mainStartOff);}
+const buf=getActiveBuf();
+if(!buf)return;
+
+const c=G('mainWave');
+const r=c.getBoundingClientRect();
+
+const cx=
+e.touches?
+e.touches[0].clientX:
+e.clientX;
+
+const pct=
+Math.max(
+0,
+Math.min(
+1,
+(cx-r.left)/r.width
+)
+);
+
+const was=mainPlaying;
+
+stopMain();
+
+mainStartOff=pct*buf.duration;
+
+setPlayhead(pct);
+updTime(mainStartOff);
+
+if(was){
+buildGraph();
+playMain(mainStartOff);
 }
+}
+
 const wc=G('waveContainer');
-wc.addEventListener('mousedown',e=>{waveDrag=true;seekEvt(e);});
-wc.addEventListener('mousemove',e=>{if(waveDrag)seekEvt(e);});
+
+wc.addEventListener('mousedown',e=>{
+waveDrag=true;
+seekEvt(e);
+});
+
+wc.addEventListener('mousemove',e=>{
+if(waveDrag)seekEvt(e);
+});
+
 wc.addEventListener('mouseup',()=>waveDrag=false);
 wc.addEventListener('mouseleave',()=>waveDrag=false);
+
 wc.addEventListener('touchstart',e=>seekEvt(e),{passive:true});
 wc.addEventListener('touchmove',e=>seekEvt(e),{passive:true});
 
-// ── CONTROLS ──────────────────────────────────────────────────────────────────
-function updR(){if(mainSrc)mainSrc.playbackRate.value=getFinalRate();}
+function updR(){
+if(mainSrc)
+mainSrc.playbackRate.value=getFinalRate();
+}
+
 function bigC(sid,did,mid,pid,step,fmt,cb){
-  const sl=G(sid),dp=G(did);if(!sl||!dp)return;
-  sl.addEventListener('input',()=>{dp.textContent=fmt(sl.value);if(cb)cb();});
-  G(mid).addEventListener('click',()=>{sl.value=Math.max(+sl.min,+sl.value-step);dp.textContent=fmt(sl.value);if(cb)cb();});
-  G(pid).addEventListener('click',()=>{sl.value=Math.min(+sl.max,+sl.value+step);dp.textContent=fmt(sl.value);if(cb)cb();});
-}
-bigC('pitchSl','pitchDisp','pitchM','pitchP',1,v=>parseInt(v)>0?'+'+parseInt(v):parseInt(v),updR);
-bigC('speedSl','speedDisp','speedM','speedP',1,v=>parseInt(v)>0?'+'+parseInt(v):parseInt(v),updR);
-bigC('tuneSl','tuneDisp','tuneM','tuneP',1,v=>parseInt(v),()=>{updR();updateTuneQbtns();});
+const sl=G(sid),dp=G(did);
 
-// pitch quick buttons
-G('qp-12n').onclick=()=>applyPitch(-12);G('qp-7n').onclick=()=>applyPitch(-7);
-G('qp0').onclick=()=>applyPitch(0);G('qp7').onclick=()=>applyPitch(7);G('qp12').onclick=()=>applyPitch(12);
-function applyPitch(v){G('pitchSl').value=v;G('pitchDisp').textContent=(v>=0?'+':'')+v;updR();}
-// speed quick buttons
-G('qs-50n').onclick=()=>applySpeed(-50);G('qs0').onclick=()=>applySpeed(0);
-G('qs50').onclick=()=>applySpeed(50);G('qs100').onclick=()=>applySpeed(100);
-function applySpeed(v){G('speedSl').value=v;G('speedDisp').textContent=(v>=0?'+':'')+v;updR();}
-// tune quick buttons
+if(!sl||!dp)return;
+
+sl.addEventListener('input',()=>{
+dp.textContent=fmt(sl.value);
+if(cb)cb();
+});
+
+G(mid).addEventListener('click',()=>{
+sl.value=Math.max(+sl.min,+sl.value-step);
+dp.textContent=fmt(sl.value);
+if(cb)cb();
+});
+
+G(pid).addEventListener('click',()=>{
+sl.value=Math.min(+sl.max,+sl.value+step);
+dp.textContent=fmt(sl.value);
+if(cb)cb();
+});
+}
+
+bigC(
+'pitchSl',
+'pitchDisp',
+'pitchM',
+'pitchP',
+1,
+v=>parseInt(v)>0?'+'+parseInt(v):parseInt(v),
+updR
+);
+
+bigC(
+'speedSl',
+'speedDisp',
+'speedM',
+'speedP',
+1,
+v=>parseInt(v)>0?'+'+parseInt(v):parseInt(v),
+updR
+);
+
+bigC(
+'tuneSl',
+'tuneDisp',
+'tuneM',
+'tuneP',
+1,
+v=>parseInt(v),
+()=>{
+updR();
+updateTuneQbtns();
+}
+);
+
+G('qp-12n').onclick=()=>applyPitch(-12);
+G('qp-7n').onclick=()=>applyPitch(-7);
+G('qp0').onclick=()=>applyPitch(0);
+G('qp7').onclick=()=>applyPitch(7);
+G('qp12').onclick=()=>applyPitch(12);
+
+function applyPitch(v){
+G('pitchSl').value=v;
+G('pitchDisp').textContent=
+(v>=0?'+':'')+v;
+updR();
+}
+
+G('qs-50n').onclick=()=>applySpeed(-50);
+G('qs0').onclick=()=>applySpeed(0);
+G('qs50').onclick=()=>applySpeed(50);
+G('qs100').onclick=()=>applySpeed(100);
+
+function applySpeed(v){
+G('speedSl').value=v;
+G('speedDisp').textContent=
+(v>=0?'+':'')+v;
+updR();
+}
+
 function updateTuneQbtns(){
-  const cur=+G('tuneSl').value;
-  document.querySelectorAll('#tuneQbtns .qbtn').forEach(b=>{b.classList.toggle('active',+b.dataset.hz===cur);});
+const cur=+G('tuneSl').value;
+
+document
+.querySelectorAll('#tuneQbtns .qbtn')
+.forEach(b=>{
+b.classList.toggle(
+'active',
++b.dataset.hz===cur
+);
+});
 }
-document.querySelectorAll('#tuneQbtns .qbtn').forEach(b=>{
-  b.addEventListener('click',()=>{
-    const hz=+b.dataset.hz;G('tuneSl').value=hz;G('tuneDisp').textContent=hz;updR();updateTuneQbtns();
-  });
+
+document
+.querySelectorAll('#tuneQbtns .qbtn')
+.forEach(b=>{
+b.addEventListener('click',()=>{
+const hz=+b.dataset.hz;
+
+G('tuneSl').value=hz;
+G('tuneDisp').textContent=hz;
+
+updR();
+updateTuneQbtns();
+});
 });
 
-// ── TONE ──────────────────────────────────────────────────────────────────────
-G('bassSl').oninput=function(){const v=+this.value;G('bassV').textContent=(v>=0?'+':'')+v+'dB';if(gBass)gBass.gain.value=v;};
-G('trebSl').oninput=function(){const v=+this.value;G('trebV').textContent=(v>=0?'+':'')+v+'dB';if(gTreble)gTreble.gain.value=v;};
+G('bassSl').oninput=function(){
+const v=+this.value;
+
+G('bassV').textContent=
+(v>=0?'+':'')+v+'dB';
+
+if(gBass)
+gBass.gain.value=v;
+};
+
+G('trebSl').oninput=function(){
+const v=+this.value;
+
+G('trebV').textContent=
+(v>=0?'+':'')+v+'dB';
+
+if(gTreble)
+gTreble.gain.value=v;
+};
+
 G('revTog').onchange=function(){
-  ['revWetSl','revSizeSl'].forEach(id=>G(id).disabled=!this.checked);
-  G('revV').textContent=this.checked?G('revWetSl').value+'%':'off';
-  G('revV').className='kv'+(this.checked?'':' off');
-  if(gRevWet&&audioCtx)gRevWet.gain.setTargetAtTime(this.checked?+G('revWetSl').value/100:0,audioCtx.currentTime,.05);
+['revWetSl','revSizeSl']
+.forEach(id=>G(id).disabled=!this.checked);
+
+G('revV').textContent=
+this.checked?
+G('revWetSl').value+'%':
+'off';
+
+G('revV').className=
+'kv'+(this.checked?'':' off');
+
+if(gRevWet&&audioCtx)
+gRevWet.gain.setTargetAtTime(
+this.checked?
++G('revWetSl').value/100:
+0,
+audioCtx.currentTime,
+.05
+);
 };
-G('revWetSl').oninput=function(){G('revWetLbl').textContent=this.value+'%';G('revV').textContent=this.value+'%';if(gRevWet&&G('revTog').checked)gRevWet.gain.setTargetAtTime(+this.value/100,audioCtx.currentTime,.05);};
-G('revSizeSl').oninput=function(){if(gRev)genImp(+this.value,2.5).then(b=>gRev.buffer=b);};
+
+G('revWetSl').oninput=function(){
+G('revWetLbl').textContent=
+this.value+'%';
+
+G('revV').textContent=
+this.value+'%';
+
+if(gRevWet&&G('revTog').checked)
+gRevWet.gain.setTargetAtTime(
++this.value/100,
+audioCtx.currentTime,
+.05
+);
+};
+
+G('revSizeSl').oninput=function(){
+if(gRev)
+genImp(+this.value,2.5)
+.then(b=>gRev.buffer=b);
+};
+
 G('echTog').onchange=function(){
-  ['echDelSl','echFBSl'].forEach(id=>G(id).disabled=!this.checked);
-  G('echV').textContent=this.checked?parseFloat(G('echDelSl').value).toFixed(2)+'s':'off';
-  G('echV').className='kv'+(this.checked?'':' off');
-  if(gEchoFB&&audioCtx){gEchoFB.gain.setTargetAtTime(this.checked?+G('echFBSl').value:0,audioCtx.currentTime,.05);gEchoWet.gain.setTargetAtTime(this.checked?.45:0,audioCtx.currentTime,.05);}
+['echDelSl','echFBSl']
+.forEach(id=>G(id).disabled=!this.checked);
+
+G('echV').textContent=
+this.checked?
+parseFloat(G('echDelSl').value).toFixed(2)+'s':
+'off';
+
+G('echV').className=
+'kv'+(this.checked?'':' off');
+
+if(gEchoFB&&audioCtx){
+gEchoFB.gain.setTargetAtTime(
+this.checked?
++G('echFBSl').value:
+0,
+audioCtx.currentTime,
+.05
+);
+
+gEchoWet.gain.setTargetAtTime(
+this.checked?.45:0,
+audioCtx.currentTime,
+.05
+);
+}
 };
-G('echDelSl').oninput=function(){G('echDelLbl').textContent=parseFloat(this.value).toFixed(2)+'s';G('echV').textContent=parseFloat(this.value).toFixed(2)+'s';if(gEcho)gEcho.delayTime.value=+this.value;};
-G('echFBSl').oninput=function(){if(gEchoFB&&G('echTog').checked)gEchoFB.gain.value=+this.value;};
+
+G('echDelSl').oninput=function(){
+G('echDelLbl').textContent=
+parseFloat(this.value).toFixed(2)+'s';
+
+G('echV').textContent=
+parseFloat(this.value).toFixed(2)+'s';
+
+if(gEcho)
+gEcho.delayTime.value=+this.value;
+};
+
+G('echFBSl').oninput=function(){
+if(gEchoFB&&G('echTog').checked)
+gEchoFB.gain.value=+this.value;
+};
+
 G('clrTog').onchange=function(){
-  ['presSl','airSl'].forEach(id=>G(id).disabled=!this.checked);
-  G('clrV').textContent=this.checked?'on':'off';G('clrV').className='kv'+(this.checked?'':' off');
-  if(gPres)gPres.gain.value=this.checked?+G('presSl').value:0;if(gAir)gAir.gain.value=this.checked?+G('airSl').value:0;
-};
-G('presSl').oninput=function(){G('presV').textContent='+'+this.value+'dB';if(gPres)gPres.gain.value=+this.value;};
-G('airSl').oninput=function(){G('airV').textContent='+'+this.value+'dB';if(gAir)gAir.gain.value=+this.value;};
+['presSl','airSl']
+.forEach(id=>G(id).disabled=!this.checked);
 
-// ── VOICE FX ──────────────────────────────────────────────────────────────────
-function setEq(gains){eqNodes.forEach((n,i)=>n.gain.value=gains[i]||0);EQ_BANDS.forEach((_,i)=>{const s=G('eqS'+i);if(s){s.value=gains[i]||0;const gl=G('eqG'+i);if(gl)gl.textContent=(gains[i]>=0?'+':'')+(gains[i]||0);}});}
-function resetFx(){applyPitch(0);setEq([0,0,0,0,0,0,0,0]);if(gBass)gBass.gain.value=+G('bassSl').value;if(gTreble)gTreble.gain.value=+G('trebSl').value;}
+G('clrV').textContent=
+this.checked?'on':'off';
+
+G('clrV').className=
+'kv'+(this.checked?'':' off');
+
+if(gPres)
+gPres.gain.value=
+this.checked?
++G('presSl').value:
+0;
+
+if(gAir)
+gAir.gain.value=
+this.checked?
++G('airSl').value:
+0;
+};
+
+G('presSl').oninput=function(){
+G('presV').textContent=
+'+'+this.value+'dB';
+
+if(gPres)
+gPres.gain.value=+this.value;
+};
+
+G('airSl').oninput=function(){
+G('airV').textContent=
+'+'+this.value+'dB';
+
+if(gAir)
+gAir.gain.value=+this.value;
+};
+
+function setEq(gains){
+eqNodes.forEach((n,i)=>
+n.gain.value=gains[i]||0
+);
+
+EQ_BANDS.forEach((_,i)=>{
+const s=G('eqS'+i);
+
+if(s){
+s.value=gains[i]||0;
+
+const gl=G('eqG'+i);
+
+if(gl)
+gl.textContent=
+(gains[i]>=0?'+':'')+
+(gains[i]||0);
+}
+});
+}
+
+function resetFx(){
+applyPitch(0);
+
+setEq([
+0,0,0,0,
+0,0,0,0
+]);
+
+if(gBass)
+gBass.gain.value=
++G('bassSl').value;
+
+if(gTreble)
+gTreble.gain.value=
++G('trebSl').value;
+}
+
 function applyVoiceFx(fx,row){
-  if(curVoiceFx===fx.id){curVoiceFx=null;row.classList.remove('on');resetFx();return;}
-  document.querySelectorAll('#voiceListInner .listrow').forEach(r=>r.classList.remove('on'));
-  curVoiceFx=fx.id;row.classList.add('on');
-  setEq(fx.eq||[0,0,0,0,0,0,0,0]);
-  if(fx.pitch!==undefined)applyPitch(fx.pitch);
-  if(fx.bass!==undefined&&gBass)gBass.gain.value=fx.bass;
-  if(fx.treble!==undefined&&gTreble)gTreble.gain.value=fx.treble;
-  if(fx.forceEcho&&gEchoFB){G('echTog').checked=true;['echDelSl','echFBSl'].forEach(id=>G(id).disabled=false);if(gEcho)gEcho.delayTime.value=.25;gEchoFB.gain.value=.6;gEchoWet.gain.value=.5;}
-}
-G('atTog').onchange=function(){G('atStr').disabled=!this.checked;G('atV').textContent=this.checked?G('atStr').value+'%':'off';G('atV').className='kv'+(this.checked?'':' off');};
-G('atStr').oninput=function(){G('atStV').textContent=this.value+'%';G('atV').textContent=this.value+'%';};
-G('ageSl').oninput=function(){const v=parseInt(this.value);G('ageV').textContent=v===0?'neutral':v<0?'younger('+v+')':'older(+'+v+')';applyPitch(Math.max(-100,Math.min(100,Math.round(v*(-6)+parseInt(G('genSl').value)*(-10)))));};
-G('genSl').oninput=function(){const v=parseInt(this.value);G('genV').textContent=v===0?'neutral':v<0?'fem('+v+')':'masc(+'+v+')';applyPitch(Math.max(-100,Math.min(100,Math.round(parseInt(G('ageSl').value)*(-6)+v*(-10)))));};
-
-// ── CELEBRITY ─────────────────────────────────────────────────────────────────
-function applyCeleb(fx,row){
-  if(curCeleb===fx.id){curCeleb=null;row.classList.remove('on');G('celebDetail').style.display='none';resetFx();return;}
-  document.querySelectorAll('#cRealList .listrow,#cCartList .listrow').forEach(r=>r.classList.remove('on'));
-  curCeleb=fx.id;row.classList.add('on');
-  setEq(fx.eq||[0,0,0,0,0,0,0,0]);
-  if(fx.pitch!==undefined)applyPitch(fx.pitch);
-  if(fx.bass!==undefined&&gBass)gBass.gain.value=fx.bass;
-  if(fx.treble!==undefined&&gTreble)gTreble.gain.value=fx.treble;
-  const d=G('celebDetail');d.style.display='block';d.innerHTML='<b>'+fx.name+':</b> '+fx.detail;
+if(curVoiceFx===fx.id){
+curVoiceFx=null;
+row.classList.remove('on');
+resetFx();
+return;
 }
 
-// ── SPATIAL ───────────────────────────────────────────────────────────────────
-G('distTog').onchange=function(){
-  G('distSl').disabled=!this.checked;G('distV').textContent=this.checked?G('distSl').value+'%':'off';
-  if(!this.checked){if(gTreble)gTreble.gain.value=+G('trebSl').value;if(gRevWet)gRevWet.gain.value=G('revTog').checked?+G('revWetSl').value/100:0;}
-  else applyDist(+G('distSl').value);
+document
+.querySelectorAll('#voiceListInner .listrow')
+.forEach(r=>r.classList.remove('on'));
+
+curVoiceFx=fx.id;
+row.classList.add('on');
+
+setEq(
+fx.eq||
+[0,0,0,0,0,0,0,0]
+);
+
+if(fx.pitch!==undefined)
+applyPitch(fx.pitch);
+
+if(fx.bass!==undefined&&gBass)
+gBass.gain.value=fx.bass;
+
+if(fx.treble!==undefined&&gTreble)
+gTreble.gain.value=fx.treble;
+
+if(fx.forceEcho&&gEchoFB){
+G('echTog').checked=true;
+
+['echDelSl','echFBSl']
+.forEach(id=>G(id).disabled=false);
+
+if(gEcho)
+gEcho.delayTime.value=.25;
+
+gEchoFB.gain.value=.6;
+gEchoWet.gain.value=.5;
+}
+}
+
+G('atTog').onchange=function(){
+G('atStr').disabled=!this.checked;
+
+G('atV').textContent=
+this.checked?
+G('atStr').value+'%':
+'off';
+
+G('atV').className=
+'kv'+(this.checked?'':' off');
 };
-G('distSl').oninput=function(){G('distV').textContent=this.value+'%';applyDist(+this.value);};
-function applyDist(v){const pct=v/100;if(gTreble)gTreble.gain.value=Math.max(-20,+G('trebSl').value-pct*14);if(gRevWet)gRevWet.gain.value=pct*.65;updateSrcDot();}
+
+G('atStr').oninput=function(){
+G('atStV').textContent=
+this.value+'%';
+
+G('atV').textContent=
+this.value+'%';
+};
+
+G('ageSl').oninput=function(){
+const v=parseInt(this.value);
+
+G('ageV').textContent=
+v===0?
+'neutral':
+v<0?
+'younger('+v+')':
+'older(+'+v+')';
+
+applyPitch(
+Math.max(
+-100,
+Math.min(
+100,
+Math.round(
+v*(-6)+
+parseInt(G('genSl').value)*(-10)
+)
+)
+)
+);
+};
+
+G('genSl').oninput=function(){
+const v=parseInt(this.value);
+
+G('genV').textContent=
+v===0?
+'neutral':
+v<0?
+'fem('+v+')':
+'masc(+'+v+')';
+
+applyPitch(
+Math.max(
+-100,
+Math.min(
+100,
+Math.round(
+parseInt(G('ageSl').value)*(-6)+
+v*(-10)
+)
+)
+)
+);
+};
+
+function applyCeleb(fx,row){
+if(curCeleb===fx.id){
+curCeleb=null;
+row.classList.remove('on');
+G('celebDetail').style.display='none';
+resetFx();
+return;
+}
+
+document
+.querySelectorAll('#cRealList .listrow,#cCartList .listrow')
+.forEach(r=>r.classList.remove('on'));
+
+curCeleb=fx.id;
+row.classList.add('on');
+
+setEq(
+fx.eq||
+[0,0,0,0,0,0,0,0]
+);
+
+if(fx.pitch!==undefined)
+applyPitch(fx.pitch);
+
+if(fx.bass!==undefined&&gBass)
+gBass.gain.value=fx.bass;
+
+if(fx.treble!==undefined&&gTreble)
+gTreble.gain.value=fx.treble;
+
+const d=G('celebDetail');
+
+d.style.display='block';
+
+d.innerHTML=
+'<b>'+fx.name+':</b> '+
+fx.detail;
+}
+
+G('distTog').onchange=function(){
+G('distSl').disabled=!this.checked;
+
+G('distV').textContent=
+this.checked?
+G('distSl').value+'%':
+'off';
+
+if(!this.checked){
+if(gTreble)
+gTreble.gain.value=
++G('trebSl').value;
+
+if(gRevWet)
+gRevWet.gain.value=
+G('revTog').checked?
++G('revWetSl').value/100:
+0;
+}else{
+applyDist(+G('distSl').value);
+}
+};
+
+G('distSl').oninput=function(){
+G('distV').textContent=
+this.value+'%';
+
+applyDist(+this.value);
+};
+
+function applyDist(v){
+const pct=v/100;
+
+if(gTreble)
+gTreble.gain.value=
+Math.max(
+-20,
++G('trebSl').value-
+pct*14
+);
+
+if(gRevWet)
+gRevWet.gain.value=
+pct*.65;
+
+updateSrcDot();
+}
+
 function updateSrcDot(){
-  const viz=G('sviz'),dot=G('ssrc');if(!viz||!dot)return;
-  const cx=viz.offsetWidth/2,cy=viz.offsetHeight/2;
-  const dp=G('distTog').checked?+G('distSl').value/100:0.2;
-  const rr=(1-dp)*cy*.78;
-  dot.style.left=(cx+Math.sin(rotAngle)*rr)+'px';dot.style.top=(cy-Math.cos(rotAngle)*rr)+'px';
-  dot.style.transform='translate(-50%,-50%)';
-  const fr=Math.cos(rotAngle);
-  const gv=Math.round(Math.max(0,fr)*200+55),rv=Math.round(Math.max(0,-fr)*200+55);
-  dot.style.background='rgb('+rv+','+gv+',90)';dot.style.boxShadow='0 0 7px rgba('+rv+','+gv+',90,.65)';
-}
-G('rotTog').onchange=function(){G('rotSpd').disabled=!this.checked;G('rotV').textContent=this.checked?parseFloat(G('rotSpd').value).toFixed(2)+'Hz':'off';if(this.checked&&mainPlaying)startRot();else{stopRot();rotAngle=0;updateSrcDot();}};
-G('rotSpd').oninput=function(){G('rotV').textContent=parseFloat(this.value).toFixed(2)+'Hz';};
-function startRot(){stopRot();function f(){rotAngle+=+G('rotSpd').value*.025;if(gPan&&audioCtx)gPan.pan.setTargetAtTime(Math.sin(rotAngle),audioCtx.currentTime,.06);updateSrcDot();if(mainPlaying)rotRaf=requestAnimationFrame(f);}if(mainPlaying)rotRaf=requestAnimationFrame(f);}
-function stopRot(){if(rotRaf)cancelAnimationFrame(rotRaf);rotRaf=null;}
+const viz=G('sviz');
+const dot=G('ssrc');
 
-// ── ENVIRONMENT ───────────────────────────────────────────────────────────────
+if(!viz||!dot)return;
+
+const cx=viz.offsetWidth/2;
+const cy=viz.offsetHeight/2;
+
+const dp=
+G('distTog').checked?
++G('distSl').value/100:
+.2;
+
+const rr=
+(1-dp)*cy*.78;
+
+dot.style.left=
+(cx+Math.sin(rotAngle)*rr)+'px';
+
+dot.style.top=
+(cy-Math.cos(rotAngle)*rr)+'px';
+
+dot.style.transform=
+'translate(-50%,-50%)';
+
+const fr=
+Math.cos(rotAngle);
+
+const gv=
+Math.round(
+Math.max(0,fr)*200+55
+);
+
+const rv=
+Math.round(
+Math.max(0,-fr)*200+55
+);
+
+dot.style.background=
+'rgb('+
+rv+','+
+gv+
+',90)';
+
+dot.style.boxShadow=
+'0 0 7px rgba('+
+rv+','+
+gv+
+',90,.65)';
+}
+
+G('rotTog').onchange=function(){
+G('rotSpd').disabled=!this.checked;
+
+G('rotV').textContent=
+this.checked?
+parseFloat(G('rotSpd').value).toFixed(2)+'Hz':
+'off';
+
+if(this.checked&&mainPlaying){
+startRot();
+}else{
+stopRot();
+rotAngle=0;
+updateSrcDot();
+}
+};
+
+G('rotSpd').oninput=function(){
+G('rotV').textContent=
+parseFloat(this.value).toFixed(2)+'Hz';
+};
+
+function startRot(){
+stopRot();
+
+function f(){
+rotAngle+=
++G('rotSpd').value*.025;
+
+if(gPan&&audioCtx)
+gPan.pan.setTargetAtTime(
+Math.sin(rotAngle),
+audioCtx.currentTime,
+.06
+);
+
+updateSrcDot();
+
+if(mainPlaying)
+rotRaf=requestAnimationFrame(f);
+}
+
+if(mainPlaying)
+rotRaf=requestAnimationFrame(f);
+}
+
+function stopRot(){
+if(rotRaf)
+cancelAnimationFrame(rotRaf);
+
+rotRaf=null;
+}
+
 function applyEnv(fx,row){
-  if(curEnv===fx.id){curEnv=null;row.classList.remove('on');if(gEnvWet&&audioCtx)gEnvWet.gain.setTargetAtTime(0,audioCtx.currentTime,.1);if(gCrackle){try{gCrackle.stop();}catch(e){}gCrackle=null;}return;}
-  document.querySelectorAll('#envListInner .listrow').forEach(r=>r.classList.remove('on'));
-  curEnv=fx.id;row.classList.add('on');
-  G('envWetSl').value=fx.wet||60;G('envWetV').textContent=(fx.wet||60)+'%';
-  G('envDecSl').value=fx.decay||2;G('envDecV').textContent=(fx.decay||2).toFixed(1)+'s';
-  ensureCtx();genImp((fx.decay||2)/8,fx.decay||2).then(b=>{if(gEnvConv)gEnvConv.buffer=b;});
-  if(gEnvWet&&audioCtx)gEnvWet.gain.setTargetAtTime((fx.wet||60)/100,audioCtx.currentTime,.1);
-  if(fx.bass&&gBass)gBass.gain.value=fx.bass;
-  if(fx.lpf&&eqNodes.length){eqNodes[7].gain.value=-16;eqNodes[6].gain.value=-10;}
-  if(fx.oldradio)setEq([-14,-10,4,6,4,-4,-12,-16]);
-  if(fx.crackle){G('crklTog').checked=true;G('crklSl').disabled=false;G('crklSl').value=fx.crackle;G('crklV').textContent=fx.crackle+'%';if(gCrackle){try{gCrackle.stop();}catch(e){}gCrackle=null;}buildCrackle();}
-}
-G('envWetSl').oninput=function(){G('envWetV').textContent=this.value+'%';if(gEnvWet&&curEnv&&audioCtx)gEnvWet.gain.setTargetAtTime(+this.value/100,audioCtx.currentTime,.05);};
-G('envDecSl').oninput=function(){G('envDecV').textContent=parseFloat(this.value).toFixed(1)+'s';if(gEnvConv&&curEnv)genImp(+this.value/8,+this.value).then(b=>gEnvConv.buffer=b);};
-G('crklTog').onchange=function(){G('crklSl').disabled=!this.checked;G('crklV').textContent=this.checked?G('crklSl').value+'%':'off';G('crklV').className='kv'+(this.checked?'':' off');if(this.checked)buildCrackle();else{if(gCrackle){try{gCrackle.stop();}catch(e){}gCrackle=null;}}};
-G('crklSl').oninput=function(){G('crklV').textContent=this.value+'%';if(gCrackleGain)gCrackleGain.gain.value=+this.value/100*.15;};
-function buildCrackle(){ensureCtx();const l=audioCtx.sampleRate*3,nb=audioCtx.createBuffer(1,l,audioCtx.sampleRate),d=nb.getChannelData(0),a=+G('crklSl').value/100;for(let i=0;i<l;i++)d[i]=Math.random()<.003?(Math.random()-.5)*a*2:0;gCrackle=audioCtx.createBufferSource();gCrackle.buffer=nb;gCrackle.loop=true;gCrackleGain=audioCtx.createGain();gCrackleGain.gain.value=a*.15;gCrackle.connect(gCrackleGain);gCrackleGain.connect(audioCtx.destination);gCrackle.start();}
+if(curEnv===fx.id){
+curEnv=null;
 
-// ── RECORDING ─────────────────────────────────────────────────────────────────
+row.classList.remove('on');
+
+if(gEnvWet&&audioCtx)
+gEnvWet.gain.setTargetAtTime(
+0,
+audioCtx.currentTime,
+.1
+);
+
+if(gCrackle){
+try{gCrackle.stop();}catch(e){}
+gCrackle=null;
+}
+
+return;
+}
+
+document
+.querySelectorAll('#envListInner .listrow')
+.forEach(r=>r.classList.remove('on'));
+
+curEnv=fx.id;
+row.classList.add('on');
+
+G('envWetSl').value=
+fx.wet||60;
+
+G('envWetV').textContent=
+(fx.wet||60)+'%';
+
+G('envDecSl').value=
+fx.decay||2;
+
+G('envDecV').textContent=
+(fx.decay||2).toFixed(1)+'s';
+
+ensureCtx();
+
+genImp(
+(fx.decay||2)/8,
+fx.decay||2
+).then(b=>{
+if(gEnvConv)
+gEnvConv.buffer=b;
+});
+
+if(gEnvWet&&audioCtx)
+gEnvWet.gain.setTargetAtTime(
+(fx.wet||60)/100,
+audioCtx.currentTime,
+.1
+);
+
+if(fx.bass&&gBass)
+gBass.gain.value=fx.bass;
+
+if(fx.lpf&&eqNodes.length){
+eqNodes[7].gain.value=-16;
+eqNodes[6].gain.value=-10;
+}
+
+if(fx.oldradio)
+setEq([
+-14,-10,4,6,
+4,-4,-12,-16
+]);
+
+if(fx.crackle){
+G('crklTog').checked=true;
+
+G('crklSl').disabled=false;
+
+G('crklSl').value=
+fx.crackle;
+
+G('crklV').textContent=
+fx.crackle+'%';
+
+if(gCrackle){
+try{gCrackle.stop();}catch(e){}
+gCrackle=null;
+}
+
+buildCrackle();
+}
+}
+
+G('envWetSl').oninput=function(){
+G('envWetV').textContent=
+this.value+'%';
+
+if(gEnvWet&&curEnv&&audioCtx)
+gEnvWet.gain.setTargetAtTime(
++this.value/100,
+audioCtx.currentTime,
+.05
+);
+};
+
+G('envDecSl').oninput=function(){
+G('envDecV').textContent=
+parseFloat(this.value).toFixed(1)+'s';
+
+if(gEnvConv&&curEnv)
+genImp(
++this.value/8,
++this.value
+).then(b=>gEnvConv.buffer=b);
+};
+
+G('crklTog').onchange=function(){
+G('crklSl').disabled=
+!this.checked;
+
+G('crklV').textContent=
+this.checked?
+G('crklSl').value+'%':
+'off';
+
+G('crklV').className=
+'kv'+(this.checked?'':' off');
+
+if(this.checked){
+buildCrackle();
+}else{
+if(gCrackle){
+try{gCrackle.stop();}catch(e){}
+gCrackle=null;
+}
+}
+};
+
+G('crklSl').oninput=function(){
+G('crklV').textContent=
+this.value+'%';
+
+if(gCrackleGain)
+gCrackleGain.gain.value=
++this.value/100*.15;
+};
+
+function buildCrackle(){
+ensureCtx();
+
+const l=
+audioCtx.sampleRate*3;
+
+const nb=
+audioCtx.createBuffer(
+1,
+l,
+audioCtx.sampleRate
+);
+
+const d=
+nb.getChannelData(0);
+
+const a=
++G('crklSl').value/100;
+
+for(let i=0;i<l;i++){
+d[i]=
+Math.random()<.003?
+(Math.random()-.5)*a*2:
+0;
+}
+
+gCrackle=
+audioCtx.createBufferSource();
+
+gCrackle.buffer=nb;
+gCrackle.loop=true;
+
+gCrackleGain=
+audioCtx.createGain();
+
+gCrackleGain.gain.value=
+a*.15;
+
+gCrackle.connect(gCrackleGain);
+gCrackleGain.connect(audioCtx.destination);
+
+gCrackle.start();
+}
+
 G('btnRec').addEventListener('click',async()=>{
-  if(recorder&&recorder.state==='recording')return;
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){pill('recPill','err','Mic not supported');return;}
-  try{recStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});}
-  catch(err){pill('recPill','err',err.name==='NotAllowedError'?'Mic blocked - allow in address bar':err.name==='NotFoundError'?'No mic found':'Mic error: '+err.message);return;}
-  recAC=new AudioContext();recAnalyser=recAC.createAnalyser();recAnalyser.fftSize=1024;
-  recAC.createMediaStreamSource(recStream).connect(recAnalyser);
-  recChunks=[];
-  const mime=MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?'audio/webm;codecs=opus':MediaRecorder.isTypeSupported('audio/webm')?'audio/webm':'audio/ogg';
-  recorder=new MediaRecorder(recStream,{mimeType:mime});
-  recorder.ondataavailable=e=>{if(e.data&&e.data.size>0)recChunks.push(e.data);};
-  recorder.onstop=async()=>{
-    if(!recChunks.length){pill('recPill','err','Nothing recorded');return;}
-    const blob=new Blob(recChunks,{type:mime});
-    G('recPlayback').src=URL.createObjectURL(blob);G('vlayer').style.display='block';
-    G('btnPlayRec').disabled=false;G('btnClrRec').disabled=false;
-    try{ensureCtx();voiceLayerBuf=await audioCtx.decodeAudioData(await blob.arrayBuffer());pill('recPill','ok','Recorded '+fmtTime(voiceLayerBuf.duration));}
-    catch(e){pill('recPill','ok','Recorded!');}
-  };
-  recorder.start(100);G('btnRec').innerHTML='<span class="recdot a"></span> Recording...';G('btnStopRec').disabled=false;pill('recPill','ld','Recording...');
-  drawRecViz();
+if(recorder&&recorder.state==='recording')
+return;
+
+if(
+!navigator.mediaDevices||
+!navigator.mediaDevices.getUserMedia
+){
+pill('recPill','err','Mic not supported');
+return;
+}
+
+try{
+recStream=
+await navigator.mediaDevices.getUserMedia({
+audio:true,
+video:false
 });
+}catch(err){
+pill(
+'recPill',
+'err',
+err.name==='NotAllowedError'?
+'Mic blocked - allow in address bar':
+err.name==='NotFoundError'?
+'No mic found':
+'Mic error: '+err.message
+);
+return;
+}
+
+recAC=new AudioContext();
+
+recAnalyser=
+recAC.createAnalyser();
+
+recAnalyser.fftSize=1024;
+
+recAC
+.createMediaStreamSource(recStream)
+.connect(recAnalyser);
+
+recChunks=[];
+
+const mime=
+MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?
+'audio/webm;codecs=opus':
+MediaRecorder.isTypeSupported('audio/webm')?
+'audio/webm':
+'audio/ogg';
+
+recorder=
+new MediaRecorder(
+recStream,
+{mimeType:mime}
+);
+
+recorder.ondataavailable=e=>{
+if(e.data&&e.data.size>0)
+recChunks.push(e.data);
+};
+
+recorder.onstop=async()=>{
+if(!recChunks.length){
+pill('recPill','err','Nothing recorded');
+return;
+}
+
+const blob=
+new Blob(
+recChunks,
+{type:mime}
+);
+
+G('recPlayback').src=
+URL.createObjectURL(blob);
+
+G('vlayer').style.display='block';
+
+G('btnPlayRec').disabled=false;
+G('btnClrRec').disabled=false;
+
+try{
+ensureCtx();
+
+voiceLayerBuf=
+await audioCtx.decodeAudioData(
+await blob.arrayBuffer()
+);
+
+pill(
+'recPill',
+'ok',
+'Recorded '+
+fmtTime(voiceLayerBuf.duration)
+);
+}catch(e){
+pill('recPill','ok','Recorded!');
+}
+};
+
+recorder.start(100);
+
+G('btnRec').innerHTML=
+'<span class="recdot a"></span> Recording...';
+
+G('btnStopRec').disabled=false;
+
+pill('recPill','ld','Recording...');
+
+drawRecViz();
+});
+
 G('btnStopRec').addEventListener('click',()=>{
-  if(recorder&&recorder.state==='recording'){recorder.stop();if(recStream)recStream.getTracks().forEach(t=>t.stop());}
-  if(recAC){try{recAC.close();}catch(e){}recAC=null;recAnalyser=null;}
-  G('btnRec').innerHTML='<span class="recdot"></span> Record';G('btnStopRec').disabled=true;
-  if(recRaf){cancelAnimationFrame(recRaf);recRaf=null;}
+if(
+recorder&&
+recorder.state==='recording'
+){
+recorder.stop();
+
+if(recStream)
+recStream
+.getTracks()
+.forEach(t=>t.stop());
+}
+
+if(recAC){
+try{recAC.close();}catch(e){}
+recAC=null;
+recAnalyser=null;
+}
+
+G('btnRec').innerHTML=
+'<span class="recdot"></span> Record';
+
+G('btnStopRec').disabled=true;
+
+if(recRaf){
+cancelAnimationFrame(recRaf);
+recRaf=null;
+}
 });
-G('btnPlayRec').addEventListener('click',()=>{const a=G('recPlayback');a.currentTime=0;a.play();});
+
+G('btnPlayRec').addEventListener('click',()=>{
+const a=G('recPlayback');
+a.currentTime=0;
+a.play();
+});
+
 G('btnClrRec').addEventListener('click',clearVoiceLayer);
 G('btnClrLayer').addEventListener('click',clearVoiceLayer);
-function clearVoiceLayer(){voiceLayerBuf=null;G('recPlayback').src='';G('vlayer').style.display='none';G('btnPlayRec').disabled=true;G('btnClrRec').disabled=true;G('vfName').textContent='';}
-G('btnUploadVoice').addEventListener('click',()=>G('voiceFileIn').click());
+
+function clearVoiceLayer(){
+voiceLayerBuf=null;
+
+G('recPlayback').src='';
+
+G('vlayer').style.display='none';
+
+G('btnPlayRec').disabled=true;
+G('btnClrRec').disabled=true;
+
+G('vfName').textContent='';
+}
+
+G('btnUploadVoice').addEventListener('click',()=>{
+G('voiceFileIn').click();
+});
+
 G('voiceFileIn').addEventListener('change',async function(){
-  const f=this.files[0];if(!f)return;
-  G('vfName').textContent=f.name;G('recPlayback').src=URL.createObjectURL(f);G('vlayer').style.display='block';
-  G('btnPlayRec').disabled=false;G('btnClrRec').disabled=false;
-  try{ensureCtx();voiceLayerBuf=await audioCtx.decodeAudioData(await f.arrayBuffer());pill('recPill','ok','Loaded: '+f.name);}
-  catch(e){pill('recPill','err','Cannot decode this file');}
+const f=this.files[0];
+
+if(!f)return;
+
+G('vfName').textContent=f.name;
+
+G('recPlayback').src=
+URL.createObjectURL(f);
+
+G('vlayer').style.display='block';
+
+G('btnPlayRec').disabled=false;
+G('btnClrRec').disabled=false;
+
+try{
+ensureCtx();
+
+voiceLayerBuf=
+await audioCtx.decodeAudioData(
+await f.arrayBuffer()
+);
+
+pill(
+'recPill',
+'ok',
+'Loaded: '+f.name
+);
+}catch(e){
+pill(
+'recPill',
+'err',
+'Cannot decode this file'
+);
+}
 });
-G('vVolSl').oninput=function(){G('vVolV').textContent=this.value+'%';};
-G('tVolSl').oninput=function(){G('tVolV').textContent=this.value+'%';};
-G('vPitchSl').oninput=function(){const v=parseInt(this.value);G('vPitchV').textContent=(v>=0?'+':'')+v+' st';};
+
+G('vVolSl').oninput=function(){
+G('vVolV').textContent=this.value+'%';
+};
+
+G('tVolSl').oninput=function(){
+G('tVolV').textContent=this.value+'%';
+};
+
+G('vPitchSl').oninput=function(){
+const v=parseInt(this.value);
+
+G('vPitchV').textContent=
+(v>=0?'+':'')+
+v+
+' st';
+};
+
 G('btnMixDl').addEventListener('click',async()=>{
-  if(!getActiveBuf()||!voiceLayerBuf){pill('recPill','err','Record or upload a voice first');return;}
-  pill('recPill','ld','Rendering...');
-  const buf=getActiveBuf(),sr=buf.sampleRate,ch=buf.numberOfChannels;
-  const tV=+G('tVolSl').value/100,vV=+G('vVolSl').value/100,vP=+G('vPitchSl').value;
-  const off=new OfflineAudioContext(ch,buf.length,sr);
-  const tS=off.createBufferSource(),vS=off.createBufferSource();tS.buffer=buf;vS.buffer=voiceLayerBuf;vS.playbackRate.value=Math.pow(2,vP/12);
-  const tG=off.createGain(),vG=off.createGain();tG.gain.value=tV;vG.gain.value=vV;
-  tS.connect(tG);vS.connect(vG);tG.connect(off.destination);vG.connect(off.destination);tS.start(0);vS.start(0);
-  const r=await off.startRendering();
-  const a=CE('a');a.href=wav2url(r);a.download=(songs[curIdx]?.name.replace(/\.[^.]+$/,'')||'track')+'_mixed.wav';a.click();
-  pill('recPill','ok','Downloaded!');
+if(!getActiveBuf()||!voiceLayerBuf){
+pill(
+'recPill',
+'err',
+'Record or upload a voice first'
+);
+return;
+}
+
+pill('recPill','ld','Rendering...');
+
+const buf=getActiveBuf();
+const sr=buf.sampleRate;
+const ch=buf.numberOfChannels;
+
+const tV=
++G('tVolSl').value/100;
+
+const vV=
++G('vVolSl').value/100;
+
+const vP=
++G('vPitchSl').value;
+
+const off=
+new OfflineAudioContext(
+ch,
+buf.length,
+sr
+);
+
+const tS=
+off.createBufferSource();
+
+const vS=
+off.createBufferSource();
+
+tS.buffer=buf;
+vS.buffer=voiceLayerBuf;
+
+vS.playbackRate.value=
+Math.pow(2,vP/12);
+
+const tG=off.createGain();
+const vG=off.createGain();
+
+tG.gain.value=tV;
+vG.gain.value=vV;
+
+tS.connect(tG);
+vS.connect(vG);
+
+tG.connect(off.destination);
+vG.connect(off.destination);
+
+tS.start(0);
+vS.start(0);
+
+const r=
+await off.startRendering();
+
+const a=CE('a');
+
+a.href=
+wav2url(r);
+
+a.download=
+(songs[curIdx]?.name.replace(/\.[^.]+$/,'')||'track')+
+'_mixed.wav';
+
+a.click();
+
+pill(
+'recPill',
+'ok',
+'Downloaded!'
+);
 });
+
 function drawRecViz(){
-  const c=G('recCanvas'),ctx=c.getContext('2d');c.width=c.offsetWidth||600;
-  function f(){if(!recAnalyser)return;const d=new Uint8Array(recAnalyser.frequencyBinCount);recAnalyser.getByteTimeDomainData(d);ctx.fillStyle='#1a1a23';ctx.fillRect(0,0,c.width,c.height);ctx.strokeStyle='#20d9a0';ctx.lineWidth=1.5;ctx.beginPath();const sw=c.width/d.length;let x=0;for(let i=0;i<d.length;i++){const y=c.height/2+(d[i]/128-1)*c.height*.42;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);x+=sw;}ctx.stroke();recRaf=requestAnimationFrame(f);}f();
+const c=G('recCanvas');
+const ctx=c.getContext('2d');
+
+c.width=
+c.offsetWidth||600;
+
+function f(){
+if(!recAnalyser)return;
+
+const d=
+new Uint8Array(
+recAnalyser.frequencyBinCount
+);
+
+recAnalyser.getByteTimeDomainData(d);
+
+ctx.fillStyle='#1a1a23';
+ctx.fillRect(
+0,0,
+c.width,c.height
+);
+
+ctx.strokeStyle='#20d9a0';
+ctx.lineWidth=1.5;
+
+ctx.beginPath();
+
+const sw=
+c.width/d.length;
+
+let x=0;
+
+for(let i=0;i<d.length;i++){
+const y=
+c.height/2+
+(d[i]/128-1)*
+c.height*.42;
+
+i===0?
+ctx.moveTo(x,y):
+ctx.lineTo(x,y);
+
+x+=sw;
 }
 
-// ── STANDALONE RECORDER ───────────────────────────────────────────────────────
-G('qlRec').addEventListener('click',()=>{G('standaloneRec').style.display='block';G('standaloneRec').scrollIntoView({behavior:'smooth',block:'nearest'});});
-G('srClose').addEventListener('click',()=>G('standaloneRec').style.display='none');
+ctx.stroke();
+
+recRaf=
+requestAnimationFrame(f);
+}
+
+f();
+}
+
+G('qlRec').addEventListener('click',()=>{
+G('standaloneRec').style.display='block';
+
+G('standaloneRec').scrollIntoView({
+behavior:'smooth',
+block:'nearest'
+});
+});
+
+G('srClose').addEventListener('click',()=>{
+G('standaloneRec').style.display='none';
+});
+
 G('srBtnRec').addEventListener('click',async()=>{
-  if(srRec&&srRec.state==='recording')return;
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){pill('srPill','err','Mic not available');return;}
-  try{srStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});}
-  catch(err){pill('srPill','err',err.name==='NotAllowedError'?'Mic blocked - click lock icon in address bar and allow Microphone':err.name==='NotFoundError'?'No microphone found':'Mic error: '+err.message);return;}
-  srAC=new AudioContext();srAn=srAC.createAnalyser();srAn.fftSize=512;srAC.createMediaStreamSource(srStream).connect(srAn);
-  srChunks=[];
-  const mime=MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?'audio/webm;codecs=opus':MediaRecorder.isTypeSupported('audio/webm')?'audio/webm':'audio/ogg';
-  srRec=new MediaRecorder(srStream,{mimeType:mime});
-  srRec.ondataavailable=e=>{if(e.data&&e.data.size>0)srChunks.push(e.data);};
-  srRec.onstop=()=>{srBlob=new Blob(srChunks,{type:mime});G('srBtnLoad').disabled=false;pill('srPill','ok','Done! Click Load into Studio');};
-  srRec.start(100);
-  G('srBtnRec').innerHTML='<span class="recdot a"></span> Recording...';G('srBtnStop').disabled=false;pill('srPill','ld','Recording...');
-  const c=G('srCanvas'),ctx=c.getContext('2d');c.width=c.offsetWidth||600;
-  function draw(){if(!srAn)return;const d=new Uint8Array(srAn.frequencyBinCount);srAn.getByteTimeDomainData(d);ctx.fillStyle='#1a1a23';ctx.fillRect(0,0,c.width,c.height);ctx.strokeStyle='#f56565';ctx.lineWidth=1.5;ctx.beginPath();const sw=c.width/d.length;let x=0;for(let i=0;i<d.length;i++){const y=c.height/2+(d[i]/128-1)*c.height*.42;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);x+=sw;}ctx.stroke();srRaf=requestAnimationFrame(draw);}draw();
-});
-G('srBtnStop').addEventListener('click',()=>{
-  if(srRec&&srRec.state==='recording'){srRec.stop();if(srStream)srStream.getTracks().forEach(t=>t.stop());}
-  if(srAC){try{srAC.close();}catch(e){}srAC=null;srAn=null;}
-  if(srRaf){cancelAnimationFrame(srRaf);srRaf=null;}
-  G('srBtnRec').innerHTML='<span class="recdot"></span> Start Recording';G('srBtnStop').disabled=true;
-});
-G('srBtnLoad').addEventListener('click',async()=>{
-  if(!srBlob)return;
-  const fname='recording-'+Date.now()+'.webm';
-  const file=new File([srBlob],fname,{type:srBlob.type});
-  songs.push({file,name:fname,buf:null});renderSongs();
-  G('standaloneRec').style.display='none';srBlob=null;G('srBtnLoad').disabled=true;
-  selectSong(songs.length-1);
-});
-G('qlYt').addEventListener('click',()=>window.open('https://yt2mp3.sc/','_blank'));
+if(srRec&&srRec.state==='recording')
+return;
 
-// ── YOUTUBE DRAG TARGET ───────────────────────────────────────────────────────
-const ytDT=G('ytDragTarget');
-if(ytDT){
-  ytDT.onclick=()=>G('fi').click();
-  ytDT.addEventListener('dragover',e=>{e.preventDefault();ytDT.classList.add('over');});
-  ytDT.addEventListener('dragleave',()=>ytDT.classList.remove('over'));
-  ytDT.addEventListener('drop',e=>{e.preventDefault();ytDT.classList.remove('over');loadFiles([...e.dataTransfer.files]);G('dz').scrollIntoView({behavior:'smooth',block:'start'});});
+if(
+!navigator.mediaDevices||
+!navigator.mediaDevices.getUserMedia
+){
+pill(
+'srPill',
+'err',
+'Mic not available'
+);
+return;
 }
 
-// ── DOWNLOAD ──────────────────────────────────────────────────────────────────
+try{
+srStream=
+await navigator.mediaDevices.getUserMedia({
+audio:true,
+video:false
+});
+}catch(err){
+pill(
+'srPill',
+'err',
+err.name==='NotAllowedError'?
+'Mic blocked - click lock icon in address bar and allow Microphone':
+err.name==='NotFoundError'?
+'No microphone found':
+'Mic error: '+err.message
+);
+return;
+}
+
+srAC=new AudioContext();
+
+srAn=srAC.createAnalyser();
+
+srAn.fftSize=512;
+
+srAC
+.createMediaStreamSource(srStream)
+.connect(srAn);
+
+srChunks=[];
+
+const mime=
+MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?
+'audio/webm;codecs=opus':
+MediaRecorder.isTypeSupported('audio/webm')?
+'audio/webm':
+'audio/ogg';
+
+srRec=
+new MediaRecorder(
+srStream,
+{mimeType:mime}
+);
+
+srRec.ondataavailable=e=>{
+if(e.data&&e.data.size>0)
+srChunks.push(e.data);
+};
+
+srRec.onstop=()=>{
+srBlob=
+new Blob(
+srChunks,
+{type:mime}
+);
+
+G('srBtnLoad').disabled=false;
+
+pill(
+'srPill',
+'ok',
+'Done! Click Load into Studio'
+);
+};
+
+srRec.start(100);
+
+G('srBtnRec').innerHTML=
+'<span class="recdot a"></span> Recording...';
+
+G('srBtnStop').disabled=false;
+
+pill('srPill','ld','Recording...');
+
+const c=G('srCanvas');
+const ctx=c.getContext('2d');
+
+c.width=
+c.offsetWidth||600;
+
+function draw(){
+if(!srAn)return;
+
+const d=
+new Uint8Array(
+srAn.frequencyBinCount
+);
+
+srAn.getByteTimeDomainData(d);
+
+ctx.fillStyle='#1a1a23';
+
+ctx.fillRect(
+0,0,
+c.width,c.height
+);
+
+ctx.strokeStyle='#f56565';
+
+ctx.lineWidth=1.5;
+
+ctx.beginPath();
+
+const sw=
+c.width/d.length;
+
+let x=0;
+
+for(let i=0;i<d.length;i++){
+const y=
+c.height/2+
+(d[i]/128-1)*
+c.height*.42;
+
+i===0?
+ctx.moveTo(x,y):
+ctx.lineTo(x,y);
+
+x+=sw;
+}
+
+ctx.stroke();
+
+srRaf=
+requestAnimationFrame(draw);
+}
+
+draw();
+});
+
+G('srBtnStop').addEventListener('click',()=>{
+if(
+srRec&&
+srRec.state==='recording'
+){
+srRec.stop();
+
+if(srStream)
+srStream
+.getTracks()
+.forEach(t=>t.stop());
+}
+
+if(srAC){
+try{srAC.close();}catch(e){}
+
+srAC=null;
+srAn=null;
+}
+
+if(srRaf){
+cancelAnimationFrame(srRaf);
+srRaf=null;
+}
+
+G('srBtnRec').innerHTML=
+'<span class="recdot"></span> Start Recording';
+
+G('srBtnStop').disabled=true;
+});
+
+G('srBtnLoad').addEventListener('click',async()=>{
+if(!srBlob)return;
+
+const fname=
+'recording-'+
+Date.now()+
+'.webm';
+
+const file=
+new File(
+[srBlob],
+fname,
+{type:srBlob.type}
+);
+
+songs.push({
+file,
+name:fname,
+buf:null
+});
+
+renderSongs();
+
+G('standaloneRec').style.display='none';
+
+srBlob=null;
+
+G('srBtnLoad').disabled=true;
+
+selectSong(
+songs.length-1
+);
+});
+
+G('qlYt').addEventListener('click',()=>{
+window.open(
+'https://yt2mp3.sc/',
+'_blank'
+);
+});
+
+const ytDT=G('ytDragTarget');
+
+if(ytDT){
+ytDT.onclick=()=>G('fi').click();
+
+ytDT.addEventListener('dragover',e=>{
+e.preventDefault();
+ytDT.classList.add('over');
+});
+
+ytDT.addEventListener('dragleave',()=>{
+ytDT.classList.remove('over');
+});
+
+ytDT.addEventListener('drop',e=>{
+e.preventDefault();
+
+ytDT.classList.remove('over');
+
+loadFiles([
+...e.dataTransfer.files
+]);
+
+G('dz').scrollIntoView({
+behavior:'smooth',
+block:'start'
+});
+});
+}
+
+/* =========================================================
+   REAL MP3 + REAL MP4 EXPORT
+   MP3 = audio only
+   MP4 = original video picture + processed audio
+   ========================================================= */
+
+let ffmpegInstance=null;
+let ffmpegLoading=null;
+
+async function getFFmpeg(){
+if(ffmpegInstance)
+return ffmpegInstance;
+
+if(ffmpegLoading)
+return ffmpegLoading;
+
+ffmpegLoading=(async()=>{
+
+if(
+!window.FFmpegWASM||
+!window.FFmpegUtil
+){
+throw new Error(
+'FFmpeg library failed to load. Check your internet connection and refresh.'
+);
+}
+
+const {FFmpeg}=FFmpegWASM;
+const {toBlobURL}=FFmpegUtil;
+
+const ff=new FFmpeg();
+
+const base=
+'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+
+await ff.load({
+coreURL:
+await toBlobURL(
+base+'/ffmpeg-core.js',
+'text/javascript'
+),
+
+wasmURL:
+await toBlobURL(
+base+'/ffmpeg-core.wasm',
+'application/wasm'
+)
+});
+
+ffmpegInstance=ff;
+
+return ff;
+})();
+
+try{
+return await ffmpegLoading;
+}finally{
+ffmpegLoading=null;
+}
+}
+
+function wavBytes(buf){
+const l=buf.length;
+const ch=buf.numberOfChannels;
+const sr=buf.sampleRate;
+
+const ab=
+new ArrayBuffer(
+44+l*ch*2
+);
+
+const v=
+new DataView(ab);
+
+function ws(o,s){
+for(let i=0;i<s.length;i++)
+v.setUint8(
+o+i,
+s.charCodeAt(i)
+);
+}
+
+ws(0,'RIFF');
+
+v.setUint32(
+4,
+36+l*ch*2,
+true
+);
+
+ws(8,'WAVE');
+ws(12,'fmt ');
+
+v.setUint32(16,16,true);
+v.setUint16(20,1,true);
+v.setUint16(22,ch,true);
+v.setUint32(24,sr,true);
+
+v.setUint32(
+28,
+sr*ch*2,
+true
+);
+
+v.setUint16(
+32,
+ch*2,
+true
+);
+
+v.setUint16(
+34,
+16,
+true
+);
+
+ws(36,'data');
+
+v.setUint32(
+40,
+l*ch*2,
+true
+);
+
+let o=44;
+
+for(let i=0;i<l;i++){
+for(let c=0;c<ch;c++){
+
+const x=
+Math.max(
+-1,
+Math.min(
+1,
+buf.getChannelData(c)[i]
+)
+);
+
+v.setInt16(
+o,
+x<0?
+x*0x8000:
+x*0x7FFF,
+true
+);
+
+o+=2;
+}
+}
+
+return new Uint8Array(ab);
+}
+
+async function ffRemove(ff,name){
+try{
+await ff.deleteFile(name);
+}catch(e){}
+}
+
+async function exportRealMp3(rendered){
+pill(
+'dlPill',
+'ld',
+'Encoding MP3...'
+);
+
+const ff=
+await getFFmpeg();
+
+const stamp=
+Date.now();
+
+const inName=
+'audio_'+
+stamp+
+'.wav';
+
+const outName=
+'audio_'+
+stamp+
+'.mp3';
+
+await ff.writeFile(
+inName,
+wavBytes(rendered)
+);
+
+try{
+
+const code=
+await ff.exec([
+'-i',inName,
+'-vn',
+'-c:a','libmp3lame',
+'-q:a','2',
+outName
+]);
+
+if(code!==0)
+throw new Error(
+'MP3 encoding failed'
+);
+
+const data=
+await ff.readFile(outName);
+
+return URL.createObjectURL(
+new Blob(
+[data.buffer],
+{type:'audio/mpeg'}
+)
+);
+
+}finally{
+
+await ffRemove(ff,inName);
+await ffRemove(ff,outName);
+
+}
+}
+
+async function exportRealMp4(rendered,rate){
+const song=
+songs[curIdx];
+
+if(!song||!song.file)
+throw new Error(
+'No source file loaded'
+);
+
+const isVideo=
+song.file.type.startsWith('video/')||
+/\.(mp4|webm|m4v|mov)$/i.test(song.name);
+
+if(!isVideo){
+throw new Error(
+'MP4 export needs an uploaded video file. Upload an MP4/WEBM first.'
+);
+}
+
+pill(
+'dlPill',
+'ld',
+'Building video...'
+);
+
+const ff=
+await getFFmpeg();
+
+const stamp=
+Date.now();
+
+const ext=
+(song.name.match(
+/\.([a-z0-9]+)$/i
+)||[])[1]||
+'mp4';
+
+const videoIn=
+'video_'+
+stamp+
+'.'+
+ext;
+
+const audioIn=
+'audio_'+
+stamp+
+'.wav';
+
+const outName=
+'video_'+
+stamp+
+'.mp4';
+
+await ff.writeFile(
+videoIn,
+new Uint8Array(
+await song.file.arrayBuffer()
+)
+);
+
+await ff.writeFile(
+audioIn,
+wavBytes(rendered)
+);
+
+try{
+
+let code;
+
+if(Math.abs(rate-1)<0.0001){
+
+/* Keep original video picture exactly as-is.
+   Replace only the audio track. */
+
+code=
+await ff.exec([
+'-i',videoIn,
+'-i',audioIn,
+
+'-map','0:v:0',
+'-map','1:a:0',
+
+'-c:v','copy',
+
+'-c:a','aac',
+'-b:a','192k',
+
+'-movflags',
+'+faststart',
+
+'-shortest',
+
+outName
+]);
+
+}else{
+
+/* If speed changes, change picture speed too
+   so audio and video stay synchronized. */
+
+code=
+await ff.exec([
+'-i',videoIn,
+'-i',audioIn,
+
+'-map','0:v:0',
+'-map','1:a:0',
+
+'-vf',
+'setpts=PTS/'+rate,
+
+'-c:v',
+'libx264',
+
+'-preset',
+'ultrafast',
+
+'-crf',
+'20',
+
+'-c:a',
+'aac',
+
+'-b:a',
+'192k',
+
+'-movflags',
+'+faststart',
+
+'-shortest',
+
+outName
+]);
+
+/* Fallback if this FFmpeg build does not
+   contain libx264. */
+
+if(code!==0){
+
+await ffRemove(
+ff,
+outName
+);
+
+code=
+await ff.exec([
+'-i',videoIn,
+'-i',audioIn,
+
+'-map','0:v:0',
+'-map','1:a:0',
+
+'-vf',
+'setpts=PTS/'+rate,
+
+'-c:v',
+'mpeg4',
+
+'-q:v',
+'3',
+
+'-c:a',
+'aac',
+
+'-b:a',
+'192k',
+
+'-movflags',
+'+faststart',
+
+'-shortest',
+
+outName
+]);
+}
+}
+
+if(code!==0)
+throw new Error(
+'MP4 video encoding failed'
+);
+
+const data=
+await ff.readFile(outName);
+
+return URL.createObjectURL(
+new Blob(
+[data.buffer],
+{type:'video/mp4'}
+)
+);
+
+}finally{
+
+await ffRemove(
+ff,
+videoIn
+);
+
+await ffRemove(
+ff,
+audioIn
+);
+
+await ffRemove(
+ff,
+outName
+);
+
+}
+}
+
 G('btnDl').addEventListener('click',async()=>{
-  const buf=getActiveBuf();if(!buf)return;
-  const fmt=G('fmtSel').value;pill('dlPill','ld','Rendering...');G('btnDl').disabled=true;
-  try{
-    const rate=getFinalRate(),sr=buf.sampleRate,ch=buf.numberOfChannels,outLen=Math.ceil(buf.length/rate);
-    const off=new OfflineAudioContext(ch,outLen,sr);
-    const src=off.createBufferSource();src.buffer=buf;src.playbackRate.value=rate;
-    const ob=off.createBiquadFilter();ob.type='lowshelf';ob.frequency.value=120;ob.gain.value=+G('bassSl').value;
-    const ot=off.createBiquadFilter();ot.type='highshelf';ot.frequency.value=8000;ot.gain.value=+G('trebSl').value;
-    const op=off.createBiquadFilter();op.type='peaking';op.frequency.value=3500;op.Q.value=1.5;op.gain.value=G('clrTog').checked?+G('presSl').value:0;
-    const oa=off.createBiquadFilter();oa.type='highshelf';oa.frequency.value=12000;oa.gain.value=G('clrTog').checked?+G('airSl').value:0;
-    const oeq=EQ_BANDS.map((b,i)=>{const f=off.createBiquadFilter();f.type=i===0?'lowshelf':i===7?'highshelf':'peaking';f.frequency.value=b.f;f.gain.value=+(G('eqS'+i)||{value:0}).value||0;f.Q.value=1.2;return f;});
-    for(let i=1;i<oeq.length;i++)oeq[i-1].connect(oeq[i]);
-    const opan=off.createStereoPanner();opan.pan.value=0;
-    const odry=off.createGain();odry.gain.value=1;
-    src.connect(ob);ob.connect(ot);ot.connect(op);op.connect(oa);oa.connect(oeq[0]);
-    const eqout=oeq[7];eqout.connect(odry);odry.connect(opan);
-    if(G('revTog').checked){const orv=off.createConvolver(),orwg=off.createGain();orwg.gain.value=+G('revWetSl').value/100;orv.buffer=await genImpOff(off,+G('revSizeSl').value,2.5);eqout.connect(orv);orv.connect(orwg);orwg.connect(opan);}
-    if(G('echTog').checked){const oed=off.createDelay(3);oed.delayTime.value=+G('echDelSl').value;const oefb=off.createGain();oefb.gain.value=+G('echFBSl').value;const oewg=off.createGain();oewg.gain.value=.45;oed.connect(oefb);oefb.connect(oed);eqout.connect(oed);oed.connect(oewg);oewg.connect(opan);}
-    if(curEnv){const oenvc=off.createConvolver(),oenvwg=off.createGain();oenvwg.gain.value=+G('envWetSl').value/100;const ef=ENV_FX.find(e=>e.id===curEnv);if(ef){oenvc.buffer=await genImpOff(off,ef.decay/8,ef.decay);}eqout.connect(oenvc);oenvc.connect(oenvwg);oenvwg.connect(opan);}
-    opan.connect(off.destination);src.start(0);
-    const rendered=await off.startRendering();
-    stems[activeStem].editBuf=rendered;
-    drawWave(rendered,G('wv-'+activeStem),{full:'#20d9a0',voc:'#9d7bf5',ins:'#f87c3d'}[activeStem]);
-    const base=songs[curIdx]?.name.replace(/\.[^.]+$/,'')||'track';
-    let url,ext;
-    if(fmt==='wav'||fmt==='flac'){url=wav2url(rendered);ext=fmt;}
-    else{
-      const mimes={mp3:'audio/mpeg',mp4:'audio/mp4',ogg:'audio/ogg',webm:'audio/webm',aac:'audio/mp4',m4a:'audio/mp4'};
-      const mime=mimes[fmt]||'audio/webm';
-      if(window.MediaRecorder&&MediaRecorder.isTypeSupported(mime)){url=await buf2fmt(rendered,mime);ext=fmt;}
-      else if(MediaRecorder.isTypeSupported('audio/webm')){url=await buf2fmt(rendered,'audio/webm');ext='webm';}
-      else{url=wav2url(rendered);ext='wav';}
-    }
-    const a=CE('a');a.href=url;a.download=base+'_'+activeStem+'_studio.'+ext;a.click();
-    pill('dlPill','ok','Downloaded!');
-  }catch(e){pill('dlPill','err',e.message.slice(0,50));}
-  G('btnDl').disabled=false;
+const buf=getActiveBuf();
+
+if(!buf)return;
+
+const fmt=
+G('fmtSel').value;
+
+pill(
+'dlPill',
+'ld',
+'Rendering...'
+);
+
+G('btnDl').disabled=true;
+
+try{
+
+const rate=
+getFinalRate();
+
+const sr=
+buf.sampleRate;
+
+const ch=
+buf.numberOfChannels;
+
+const outLen=
+Math.ceil(
+buf.length/rate
+);
+
+const off=
+new OfflineAudioContext(
+ch,
+outLen,
+sr
+);
+
+const src=
+off.createBufferSource();
+
+src.buffer=buf;
+src.playbackRate.value=rate;
+
+const ob=
+off.createBiquadFilter();
+
+ob.type='lowshelf';
+ob.frequency.value=120;
+ob.gain.value=
++G('bassSl').value;
+
+const ot=
+off.createBiquadFilter();
+
+ot.type='highshelf';
+ot.frequency.value=8000;
+ot.gain.value=
++G('trebSl').value;
+
+const op=
+off.createBiquadFilter();
+
+op.type='peaking';
+op.frequency.value=3500;
+op.Q.value=1.5;
+
+op.gain.value=
+G('clrTog').checked?
++G('presSl').value:
+0;
+
+const oa=
+off.createBiquadFilter();
+
+oa.type='highshelf';
+oa.frequency.value=12000;
+
+oa.gain.value=
+G('clrTog').checked?
++G('airSl').value:
+0;
+
+const oeq=
+EQ_BANDS.map((b,i)=>{
+const f=
+off.createBiquadFilter();
+
+f.type=
+i===0?
+'lowshelf':
+i===7?
+'highshelf':
+'peaking';
+
+f.frequency.value=b.f;
+
+f.gain.value=
++(G('eqS'+i)||{value:0}).value||0;
+
+f.Q.value=1.2;
+
+return f;
+});
+
+for(let i=1;i<oeq.length;i++)
+oeq[i-1].connect(oeq[i]);
+
+const opan=
+off.createStereoPanner();
+
+opan.pan.value=0;
+
+const odry=
+off.createGain();
+
+odry.gain.value=1;
+
+src.connect(ob);
+ob.connect(ot);
+ot.connect(op);
+op.connect(oa);
+oa.connect(oeq[0]);
+
+const eqout=
+oeq[7];
+
+eqout.connect(odry);
+odry.connect(opan);
+
+if(G('revTog').checked){
+
+const orv=
+off.createConvolver();
+
+const orwg=
+off.createGain();
+
+orwg.gain.value=
++G('revWetSl').value/100;
+
+orv.buffer=
+await genImpOff(
+off,
++G('revSizeSl').value,
+2.5
+);
+
+eqout.connect(orv);
+orv.connect(orwg);
+orwg.connect(opan);
+}
+
+if(G('echTog').checked){
+
+const oed=
+off.createDelay(3);
+
+oed.delayTime.value=
++G('echDelSl').value;
+
+const oefb=
+off.createGain();
+
+oefb.gain.value=
++G('echFBSl').value;
+
+const oewg=
+off.createGain();
+
+oewg.gain.value=.45;
+
+oed.connect(oefb);
+oefb.connect(oed);
+
+eqout.connect(oed);
+
+oed.connect(oewg);
+oewg.connect(opan);
+}
+
+if(curEnv){
+
+const oenvc=
+off.createConvolver();
+
+const oenvwg=
+off.createGain();
+
+oenvwg.gain.value=
++G('envWetSl').value/100;
+
+const ef=
+ENV_FX.find(
+e=>e.id===curEnv
+);
+
+if(ef){
+
+oenvc.buffer=
+await genImpOff(
+off,
+ef.decay/8,
+ef.decay
+);
+
+}
+
+eqout.connect(oenvc);
+oenvc.connect(oenvwg);
+oenvwg.connect(opan);
+}
+
+opan.connect(
+off.destination
+);
+
+src.start(0);
+
+const rendered=
+await off.startRendering();
+
+stems[activeStem].editBuf=
+rendered;
+
+drawWave(
+rendered,
+G('wv-'+activeStem),
+{
+full:'#20d9a0',
+voc:'#9d7bf5',
+ins:'#f87c3d'
+}[activeStem]
+);
+
+const base=
+songs[curIdx]?.name
+.replace(/\.[^.]+$/,'')||
+'track';
+
+let url;
+let ext;
+
+if(fmt==='mp3'){
+
+url=
+await exportRealMp3(
+rendered
+);
+
+ext='mp3';
+
+}else if(fmt==='mp4'){
+
+url=
+await exportRealMp4(
+rendered,
+rate
+);
+
+ext='mp4';
+
+}else if(
+fmt==='wav'||
+fmt==='flac'
+){
+
+url=
+wav2url(rendered);
+
+ext=fmt;
+
+}else{
+
+const mimes={
+ogg:'audio/ogg',
+webm:'audio/webm',
+aac:'audio/mp4',
+m4a:'audio/mp4'
+};
+
+const mime=
+mimes[fmt]||
+'audio/webm';
+
+if(
+window.MediaRecorder&&
+MediaRecorder.isTypeSupported(mime)
+){
+
+url=
+await buf2fmt(
+rendered,
+mime
+);
+
+ext=fmt;
+
+}else if(
+window.MediaRecorder&&
+MediaRecorder.isTypeSupported('audio/webm')
+){
+
+url=
+await buf2fmt(
+rendered,
+'audio/webm'
+);
+
+ext='webm';
+
+}else{
+
+url=
+wav2url(rendered);
+
+ext='wav';
+}
+}
+
+const a=
+CE('a');
+
+a.href=url;
+
+a.download=
+base+
+'_'+
+activeStem+
+'_studio.'+
+ext;
+
+a.click();
+
+pill(
+'dlPill',
+'ok',
+'Downloaded!'
+);
+
+}catch(e){
+
+console.error(e);
+
+pill(
+'dlPill',
+'err',
+e.message.slice(0,80)
+);
+
+}
+
+G('btnDl').disabled=false;
 });
 
 async function buf2fmt(buf,mime){
-  return new Promise(res=>{
-    const ac=new AudioContext(),src=ac.createBufferSource();src.buffer=buf;
-    const dest=ac.createMediaStreamDestination();src.connect(dest);
-    const mr=new MediaRecorder(dest.stream,{mimeType:mime});const chunks=[];
-    mr.ondataavailable=e=>chunks.push(e.data);
-    mr.onstop=()=>res(URL.createObjectURL(new Blob(chunks,{type:mime})));
-    mr.start();src.start(0);src.onended=()=>setTimeout(()=>mr.stop(),200);
-  });
+return new Promise(res=>{
+
+const ac=
+new AudioContext();
+
+const src=
+ac.createBufferSource();
+
+src.buffer=buf;
+
+const dest=
+ac.createMediaStreamDestination();
+
+src.connect(dest);
+
+const mr=
+new MediaRecorder(
+dest.stream,
+{mimeType:mime}
+);
+
+const chunks=[];
+
+mr.ondataavailable=e=>{
+chunks.push(e.data);
+};
+
+mr.onstop=()=>{
+res(
+URL.createObjectURL(
+new Blob(
+chunks,
+{type:mime}
+)
+)
+);
+};
+
+mr.start();
+
+src.start(0);
+
+src.onended=()=>{
+setTimeout(
+()=>mr.stop(),
+200
+);
+};
+
+});
 }
 
-// ── UTILS ─────────────────────────────────────────────────────────────────────
-async function genImp(decay,dur){ensureCtx();const sr=audioCtx.sampleRate,l=Math.ceil(sr*Math.max(.5,dur||2.5)),b=audioCtx.createBuffer(2,l,sr);for(let c=0;c<2;c++){const d=b.getChannelData(c);for(let i=0;i<l;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/l,Math.max(.1,decay)*8);}return b;}
-async function genImpOff(ctx,decay,dur){const sr=ctx.sampleRate,l=Math.ceil(sr*Math.max(.5,dur||2.5)),b=ctx.createBuffer(2,l,sr);for(let c=0;c<2;c++){const d=b.getChannelData(c);for(let i=0;i<l;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/l,Math.max(.1,decay)*8);}return b;}
+async function genImp(decay,dur){
+ensureCtx();
+
+const sr=
+audioCtx.sampleRate;
+
+const l=
+Math.ceil(
+sr*
+Math.max(
+.5,
+dur||2.5
+)
+);
+
+const b=
+audioCtx.createBuffer(
+2,
+l,
+sr
+);
+
+for(let c=0;c<2;c++){
+
+const d=
+b.getChannelData(c);
+
+for(let i=0;i<l;i++){
+
+d[i]=
+(Math.random()*2-1)*
+Math.pow(
+1-i/l,
+Math.max(.1,decay)*8
+);
+
+}
+}
+
+return b;
+}
+
+async function genImpOff(ctx,decay,dur){
+const sr=
+ctx.sampleRate;
+
+const l=
+Math.ceil(
+sr*
+Math.max(
+.5,
+dur||2.5
+)
+);
+
+const b=
+ctx.createBuffer(
+2,
+l,
+sr
+);
+
+for(let c=0;c<2;c++){
+
+const d=
+b.getChannelData(c);
+
+for(let i=0;i<l;i++){
+
+d[i]=
+(Math.random()*2-1)*
+Math.pow(
+1-i/l,
+Math.max(.1,decay)*8
+);
+
+}
+}
+
+return b;
+}
 
 function wav2url(buf){
-  const l=buf.length,ch=buf.numberOfChannels,sr=buf.sampleRate;
-  const ab=new ArrayBuffer(44+l*ch*2),v=new DataView(ab);
-  function ws(o,s){for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));}
-  ws(0,'RIFF');v.setUint32(4,36+l*ch*2,true);ws(8,'WAVE');ws(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,ch,true);v.setUint32(24,sr,true);v.setUint32(28,sr*ch*2,true);v.setUint16(32,ch*2,true);v.setUint16(34,16,true);ws(36,'data');v.setUint32(40,l*ch*2,true);
-  let o=44;for(let i=0;i<l;i++)for(let c=0;c<ch;c++){const s=Math.max(-1,Math.min(1,buf.getChannelData(c)[i]));v.setInt16(o,s<0?s*0x8000:s*0x7FFF,true);o+=2;}
-  return URL.createObjectURL(new Blob([ab],{type:'audio/wav'}));
+const l=buf.length;
+const ch=buf.numberOfChannels;
+const sr=buf.sampleRate;
+
+const ab=
+new ArrayBuffer(
+44+l*ch*2
+);
+
+const v=
+new DataView(ab);
+
+function ws(o,s){
+for(let i=0;i<s.length;i++)
+v.setUint8(
+o+i,
+s.charCodeAt(i)
+);
+}
+
+ws(0,'RIFF');
+
+v.setUint32(
+4,
+36+l*ch*2,
+true
+);
+
+ws(8,'WAVE');
+ws(12,'fmt ');
+
+v.setUint32(16,16,true);
+v.setUint16(20,1,true);
+v.setUint16(22,ch,true);
+v.setUint32(24,sr,true);
+
+v.setUint32(
+28,
+sr*ch*2,
+true
+);
+
+v.setUint16(
+32,
+ch*2,
+true
+);
+
+v.setUint16(
+34,
+16,
+true
+);
+
+ws(36,'data');
+
+v.setUint32(
+40,
+l*ch*2,
+true
+);
+
+let o=44;
+
+for(let i=0;i<l;i++){
+for(let c=0;c<ch;c++){
+
+const s=
+Math.max(
+-1,
+Math.min(
+1,
+buf.getChannelData(c)[i]
+)
+);
+
+v.setInt16(
+o,
+s<0?
+s*0x8000:
+s*0x7FFF,
+true
+);
+
+o+=2;
+}
+}
+
+return URL.createObjectURL(
+new Blob(
+[ab],
+{type:'audio/wav'}
+)
+);
 }
 
 function drawWave(buf,canvas,color){
-  if(!canvas||!buf)return;const ctx=canvas.getContext('2d');
-  const W=canvas.offsetWidth||300;canvas.width=W;
-  const H=canvas.height,data=buf.getChannelData(0),step=Math.ceil(data.length/W);
-  ctx.fillStyle='#1a1a23';ctx.fillRect(0,0,W,H);
-  const mid=H/2;ctx.fillStyle=color||'#20d9a0';
-  for(let x=0;x<W;x++){let mn=1,mx=-1;for(let j=0;j<step;j++){const vv=data[x*step+j]||0;if(vv<mn)mn=vv;if(vv>mx)mx=vv;}ctx.fillRect(x,mid+mn*mid*.88,1,Math.max(1,(mx-mn)*mid*.88));}
+if(!canvas||!buf)return;
+
+const ctx=
+canvas.getContext('2d');
+
+const W=
+canvas.offsetWidth||300;
+
+canvas.width=W;
+
+const H=
+canvas.height;
+
+const data=
+buf.getChannelData(0);
+
+const step=
+Math.ceil(
+data.length/W
+);
+
+ctx.fillStyle='#1a1a23';
+
+ctx.fillRect(
+0,0,
+W,H
+);
+
+const mid=H/2;
+
+ctx.fillStyle=
+color||'#20d9a0';
+
+for(let x=0;x<W;x++){
+
+let mn=1;
+let mx=-1;
+
+for(let j=0;j<step;j++){
+
+const vv=
+data[x*step+j]||0;
+
+if(vv<mn)mn=vv;
+if(vv>mx)mx=vv;
+
+}
+
+ctx.fillRect(
+x,
+mid+mn*mid*.88,
+1,
+Math.max(
+1,
+(mx-mn)*mid*.88
+)
+);
+
+}
 }
 
 function drawMainWave(buf,stemKey){
-  const c=G('mainWave');if(!c||!buf)return;
-  const ctx=c.getContext('2d');const W=c.offsetWidth||700;c.width=W;
-  const H=c.height,data=buf.getChannelData(0),step=Math.ceil(data.length/W);
-  ctx.fillStyle='#1a1a23';ctx.fillRect(0,0,W,H);
-  const mid=H/2;
-  const colA=stemKey==='voc'?'rgba(157,123,245,.88)':stemKey==='ins'?'rgba(248,124,61,.88)':'rgba(32,217,160,.88)';
-  const colB=stemKey==='voc'?'rgba(32,217,160,.5)':stemKey==='ins'?'rgba(157,123,245,.5)':'rgba(157,123,245,.88)';
-  for(let x=0;x<W;x++){let mn=1,mx=-1;for(let j=0;j<step;j++){const vv=data[x*step+j]||0;if(vv<mn)mn=vv;if(vv>mx)mx=vv;}const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,colA);g.addColorStop(1,colB);ctx.fillStyle=g;ctx.fillRect(x,mid+mn*mid*.88,1,Math.max(1,(mx-mn)*mid*.88));}
+const c=G('mainWave');
+
+if(!c||!buf)return;
+
+const ctx=
+c.getContext('2d');
+
+const W=
+c.offsetWidth||700;
+
+c.width=W;
+
+const H=c.height;
+
+const data=
+buf.getChannelData(0);
+
+const step=
+Math.ceil(
+data.length/W
+);
+
+ctx.fillStyle='#1a1a23';
+
+ctx.fillRect(
+0,0,
+W,H
+);
+
+const mid=H/2;
+
+const colA=
+stemKey==='voc'?
+'rgba(157,123,245,.88)':
+stemKey==='ins'?
+'rgba(248,124,61,.88)':
+'rgba(32,217,160,.88)';
+
+const colB=
+stemKey==='voc'?
+'rgba(32,217,160,.5)':
+stemKey==='ins'?
+'rgba(157,123,245,.5)':
+'rgba(157,123,245,.88)';
+
+for(let x=0;x<W;x++){
+
+let mn=1;
+let mx=-1;
+
+for(let j=0;j<step;j++){
+
+const vv=
+data[x*step+j]||0;
+
+if(vv<mn)mn=vv;
+if(vv>mx)mx=vv;
+
+}
+
+const g=
+ctx.createLinearGradient(
+0,0,
+0,H
+);
+
+g.addColorStop(
+0,
+colA
+);
+
+g.addColorStop(
+1,
+colB
+);
+
+ctx.fillStyle=g;
+
+ctx.fillRect(
+x,
+mid+mn*mid*.88,
+1,
+Math.max(
+1,
+(mx-mn)*mid*.88
+)
+);
+}
 }
 </script>
 </body>
